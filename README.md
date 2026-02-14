@@ -1,11 +1,11 @@
-# @martinrapcan/react-native-simple-color-picker
+# @darthrapid/react-native-simple-color-picker
 
 Lightweight HSB color picker for React Native with modal/inline modes, tabs, and i18n support. Pure JS, Expo compatible.
 
 ## Installation
 
 ```bash
-bun add @martinrapcan/react-native-simple-color-picker
+bun add @darthrapid/react-native-simple-color-picker
 ```
 
 ### Peer dependency
@@ -20,7 +20,7 @@ By default, renders as a small color swatch. Tap it to open the picker modal.
 
 ```tsx
 import { useState } from "react";
-import { ColorPicker } from "@martinrapcan/react-native-simple-color-picker";
+import { ColorPicker } from "@darthrapid/react-native-simple-color-picker";
 
 export default function App() {
   const [color, setColor] = useState("#007AFF");
@@ -108,7 +108,7 @@ Only pass the labels you want to override — the rest stays English by default.
 
 ```tsx
 import { useRef } from "react";
-import { ColorPicker, type ColorPickerRef } from "@martinrapcan/react-native-simple-color-picker";
+import { ColorPicker, type ColorPickerRef } from "@darthrapid/react-native-simple-color-picker";
 
 const ref = useRef<ColorPickerRef>(null);
 

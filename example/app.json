@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "ReactNativeColorPicker Example",
-    "slug": "@martinrapcan/react-native-color-picker-example",
+    "slug": "@darthrapid/react-native-color-picker-example",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "martinrapcan.reactnativecolorpicker.example"
+      "bundleIdentifier": "darthrapid.reactnativecolorpicker.example"
     },
     "android": {
       "adaptiveIcon": {
@@ -22,7 +22,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "martinrapcan.reactnativecolorpicker.example"
+      "package": "darthrapid.reactnativecolorpicker.example"
     },
     "web": {
       "favicon": "./assets/favicon.png"

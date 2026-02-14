@@ -1,4 +1,4 @@
-import { ColorPicker } from "@martinrapcan/react-native-color-picker";
+import { ColorPicker } from "@darthrapid/react-native-color-picker";
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 

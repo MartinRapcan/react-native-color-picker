@@ -2,7 +2,7 @@
   "compilerOptions": {
     "rootDir": ".",
     "paths": {
-      "@martinrapcan/react-native-color-picker": ["./src/index"]
+      "@darthrapid/react-native-color-picker": ["./src/index"]
     },
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,

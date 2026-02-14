@@ -1,5 +1,5 @@
 {
-  "name": "@martinrapcan/react-native-color-picker",
+  "name": "@darthrapid/react-native-color-picker",
   "version": "1.0.0",
   "description": "Lightweight HSB color picker for React Native with modal/inline modes, tabs, and i18n support. Pure JS, Expo compatible.",
   "main": "./lib/module/index.js",
@@ -31,6 +31,8 @@
     "react-native",
     "svg",
     "color-picker",
+    "hue",
+    "saturation",
     "ios",
     "android"
   ],
