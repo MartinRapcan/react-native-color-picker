@@ -1,0 +1,116 @@
+{
+  "name": "@martinrapcan/react-native-color-picker",
+  "version": "1.0.0",
+  "description": "Lightweight HSB color picker for React Native with modal/inline modes, tabs, and i18n support. Pure JS, Expo compatible.",
+  "main": "./lib/module/index.js",
+  "types": "./lib/typescript/src/index.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/index.tsx",
+      "types": "./lib/typescript/src/index.d.ts",
+      "default": "./lib/module/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "lib",
+    "!**/__tests__",
+    "!**/__fixtures__",
+    "!**/__mocks__",
+    "!**/.*"
+  ],
+  "scripts": {
+    "example": "bun run --cwd example",
+    "clean": "del-cli lib",
+    "prepare": "bob build",
+    "typecheck": "tsc",
+    "test": "jest"
+  },
+  "keywords": [
+    "react-native",
+    "svg",
+    "color-picker",
+    "ios",
+    "android"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MartinRapcan/react-native-color-picker.git"
+  },
+  "author": "Martin Rapčan <rapcan.rmartin@gmail.com> (https://github.com/MartinRapcan)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/MartinRapcan/react-native-color-picker/issues"
+  },
+  "homepage": "https://github.com/MartinRapcan/react-native-color-picker#readme",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
+  "devDependencies": {
+    "@commitlint/config-conventional": "^19.8.1",
+    "@react-native/babel-preset": "0.83.0",
+    "@types/jest": "^29.5.14",
+    "@types/react": "^19.1.12",
+    "commitlint": "^19.8.1",
+    "del-cli": "^6.0.0",
+    "jest": "^29.7.0",
+    "lefthook": "^2.0.3",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-builder-bob": "^0.40.13",
+    "turbo": "^2.5.6",
+    "typescript": "^5.9.2"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*",
+    "react-native-svg": "^15.15.3"
+  },
+  "workspaces": [
+    "example"
+  ],
+  "react-native-builder-bob": {
+    "source": "src",
+    "output": "lib",
+    "targets": [
+      [
+        "module",
+        {
+          "esm": true
+        }
+      ],
+      [
+        "typescript",
+        {
+          "project": "tsconfig.build.json",
+          "tsc": "node_modules/typescript/bin/tsc"
+        }
+      ]
+    ]
+  },
+  "jest": {
+    "preset": "react-native",
+    "modulePathIgnorePatterns": [
+      "<rootDir>/example/node_modules",
+      "<rootDir>/lib/"
+    ],
+    "transformIgnorePatterns": [
+      "node_modules/(?!(.bun|react-native|@react-native|react-native-svg)/)"
+    ]
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
+  },
+  "create-react-native-library": {
+    "type": "library",
+    "languages": "js",
+    "tools": [
+      "jest",
+      "lefthook"
+    ],
+    "version": "0.57.2"
+  }
+}
