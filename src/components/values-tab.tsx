@@ -3,13 +3,15 @@ import {
   TextInput,
   View
 } from "react-native";
+import Svg, { Defs, Pattern, Rect } from "react-native-svg";
 import type { Theme } from "../types/misc";
-import { hexToRgb } from "../utils/colors";
+import { hexToRgb, hexToRgba } from "../utils/colors";
 
 type ValuesTabProps = {
   hue: number;
   sat: number;
   bright: number;
+  alpha?: number;
   currentHex: string;
   hexInput: string;
   disabled: boolean;
@@ -24,6 +26,7 @@ export function ValuesTab({
   hue,
   sat,
   bright,
+  alpha,
   currentHex,
   hexInput,
   disabled,
@@ -33,6 +36,7 @@ export function ValuesTab({
   onHexInputFocus,
   onHexInputBlur,
 }: ValuesTabProps) {
+  const showAlpha = alpha != null;
   const rgb = hexToRgb(currentHex);
 
   return (
@@ -71,19 +75,49 @@ export function ValuesTab({
             width: 48,
             height: 48,
             borderRadius: 10,
-            backgroundColor: currentHex,
+            overflow: "hidden",
             borderWidth: 1,
             borderColor: t.border,
           }}
-        />
+        >
+          {showAlpha && (
+            <Svg width={48} height={48} style={{ position: "absolute" }}>
+              <Defs>
+                <Pattern
+                  id="valuesChecker"
+                  x="0"
+                  y="0"
+                  width={12}
+                  height={12}
+                  patternUnits="userSpaceOnUse"
+                >
+                  <Rect x="0" y="0" width={6} height={6} fill="#CCCCCC" />
+                  <Rect x={6} y="0" width={6} height={6} fill="#FFFFFF" />
+                  <Rect x="0" y={6} width={6} height={6} fill="#FFFFFF" />
+                  <Rect x={6} y={6} width={6} height={6} fill="#CCCCCC" />
+                </Pattern>
+              </Defs>
+              <Rect x="0" y="0" width={48} height={48} fill="url(#valuesChecker)" />
+            </Svg>
+          )}
+          <View
+            style={{
+              position: "absolute",
+              width: "100%",
+              height: "100%",
+              backgroundColor: showAlpha ? hexToRgba(currentHex, alpha) : currentHex,
+            }}
+          />
+        </View>
       </View>
 
-      {/* RGB */}
+      {/* RGB(A) */}
       <View style={{ flexDirection: "row", gap: 8 }}>
         {[
           { label: "R", value: rgb.r, color: "#FF6B6B" },
           { label: "G", value: rgb.g, color: "#51CF66" },
           { label: "B", value: rgb.b, color: "#339AF0" },
+          ...(showAlpha ? [{ label: "A", value: alpha, color: "#868E96" }] : []),
         ].map(({ label, value: val, color }) => (
           <View
             key={label}
@@ -114,18 +148,19 @@ export function ValuesTab({
                 marginTop: 2,
               }}
             >
-              {val}
+              {label === "A" ? `${val}%` : val}
             </Text>
           </View>
         ))}
       </View>
 
-      {/* HSB */}
+      {/* HSB(A) */}
       <View style={{ flexDirection: "row", gap: 8 }}>
         {[
           { label: "H", value: `${hue}°` },
           { label: "S", value: `${sat}%` },
           { label: "B", value: `${bright}%` },
+          ...(showAlpha ? [{ label: "A", value: `${alpha}%` }] : []),
         ].map(({ label, value: val }) => (
           <View
             key={label}

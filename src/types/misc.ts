@@ -3,22 +3,21 @@ import type { themes } from "../shared/const";
 export type ColorPickerRef = {
   getColor: () => string;
   setColor: (hex: string) => void;
-  clearRecent: () => void;
+  clearSaved: () => void;
   open: () => void;
   close: () => void;
 };
 
-export type TabId = "picker" | "values" | "recent";
+export type TabId = "picker" | "values" | "palettes";
 
 export type ColorPickerLabels = {
   picker?: string;
   values?: string;
-  recent?: string;
+  palettes?: string;
   save?: string;
-  savedColors?: string;
-  clearAll?: string;
+  saved?: string;
+  clearSaved?: string;
   noSavedColors?: string;
-  noSavedColorsHint?: string;
 };
 
 export type Theme = (typeof themes)["dark"];

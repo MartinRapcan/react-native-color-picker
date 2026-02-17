@@ -12,7 +12,9 @@ export function hsbToHex(h: number, s: number, b: number): string {
 }
 
 export function hexToHsb(hex: string): { h: number; s: number; b: number } {
-  const clean = hex.replace("#", "");
+  let clean = hex.replace("#", "");
+  // Strip alpha channel if 8-digit hex
+  if (clean.length === 8) clean = clean.slice(0, 6);
   const full =
     clean.length === 3
       ? clean
@@ -47,11 +49,39 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } {
 }
 
 export function isValidHex(hex: string): boolean {
-  return /^#?[0-9A-Fa-f]{6}$/.test(hex);
+  return /^#?([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/.test(hex);
 }
 
-export function getContrastColor(hex: string): string {
+export function parseAlphaFromHex(hex: string): number {
+  const clean = hex.replace("#", "");
+  if (clean.length === 8) {
+    return Math.round((parseInt(clean.slice(6, 8), 16) / 255) * 100);
+  }
+  return 100;
+}
+
+export function appendAlphaToHex(hex: string, alpha: number): string {
+  const base = hex.startsWith("#") ? hex.slice(0, 7) : `#${hex.slice(0, 6)}`;
+  const alphaHex = Math.round((alpha / 100) * 255)
+    .toString(16)
+    .padStart(2, "0");
+  return `${base}${alphaHex}`;
+}
+
+export function getContrastColor(hex: string, alpha = 100): string {
   const { r, g, b } = hexToRgb(hex);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  // Checkerboard average is ~230 (mix of #CCCCCC and #FFFFFF)
+  const checkerAvg = 230;
+  const a = alpha / 100;
+  // Blend color with checkerboard background
+  const blendedR = r * a + checkerAvg * (1 - a);
+  const blendedG = g * a + checkerAvg * (1 - a);
+  const blendedB = b * a + checkerAvg * (1 - a);
+  const luminance = (0.299 * blendedR + 0.587 * blendedG + 0.114 * blendedB) / 255;
   return luminance > 0.5 ? "#000000" : "#FFFFFF";
+}
+
+export function hexToRgba(hex: string, alpha: number): string {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha / 100})`;
 }

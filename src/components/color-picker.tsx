@@ -7,24 +7,33 @@ import React, {
 import {
   Modal,
   Pressable,
+  View,
   type DimensionValue,
   type StyleProp,
-  type ViewStyle
+  type ViewStyle,
 } from "react-native";
+import Svg, { Defs, Pattern, Rect } from "react-native-svg";
 import { PickerPanel } from "./picker-panel";
 import type { ColorPickerLabels, ColorPickerRef, TabId } from "../types/misc";
 import { DEFAULT_LABELS, themes } from "../shared/const";
-import { getContrastColor, hexToHsb, hsbToHex, isValidHex } from "../utils/colors";
+import {
+  appendAlphaToHex,
+  getContrastColor,
+  hexToHsb,
+  hexToRgba,
+  hsbToHex,
+  isValidHex,
+  parseAlphaFromHex,
+} from "../utils/colors";
+import type { ColorPalette } from "./palettes-tab";
 
 export type ColorPickerProps = {
-  /** Current color value (hex string) */
+  /** Current color value (hex string, 6 or 8 digit) */
   value?: string;
-  /** Called when color changes */
+  /** Called when color changes (returns #RRGGBB or #RRGGBBAA when showAlpha is true) */
   onChange?: (hex: string) => void;
-  /** Tabs to show (default: ["picker", "values", "recent"]) */
+  /** Tabs to show (default: ["picker", "values", "palettes"]) */
   tabs?: TabId[];
-  /** Max recent colors (default: 16) */
-  maxRecentColors?: number;
   /** Panel width in modal mode (default: 320). Accepts number or "100%". Ignored in inline mode. */
   panelWidth?: DimensionValue;
   /** Hue strip height (default: 28) */
@@ -45,8 +54,18 @@ export type ColorPickerProps = {
   inline?: boolean;
   /** Override default labels for i18n */
   labels?: ColorPickerLabels;
-  /** Style for modal wrapper */
-  modalStyle?: StyleProp<ViewStyle>;
+  /** Style for content wrapper */
+  contentStyle?: StyleProp<ViewStyle>;
+  /** Show alpha channel strip (default: false) */
+  showAlpha?: boolean;
+  /** Color palettes for the palettes tab */
+  palettes?: ColorPalette[];
+  /** Saved colors (controlled) - if provided, component won't manage saved colors internally */
+  savedColors?: string[];
+  /** Called when user saves a color */
+  onSaveColor?: (hex: string) => void;
+  /** Called when user clears saved colors */
+  onClearSaved?: () => void;
 };
 
 export const ColorPicker = React.forwardRef<ColorPickerRef, ColorPickerProps>(
@@ -54,8 +73,7 @@ export const ColorPicker = React.forwardRef<ColorPickerRef, ColorPickerProps>(
     {
       value = "#007AFF",
       onChange,
-      tabs = ["picker", "values", "recent"],
-      maxRecentColors = 16,
+      tabs = ["picker", "values", "palettes"],
       panelWidth = "100%",
       hueStripHeight = 28,
       theme: themeName = "dark",
@@ -66,7 +84,12 @@ export const ColorPicker = React.forwardRef<ColorPickerRef, ColorPickerProps>(
       swatchStyle,
       inline = false,
       labels: userLabels,
-      modalStyle,
+      contentStyle,
+      showAlpha = false,
+      palettes,
+      savedColors: savedColorsProp,
+      onSaveColor: onSaveColorProp,
+      onClearSaved: onClearSavedProp,
     },
     ref,
   ) => {
@@ -78,19 +101,29 @@ export const ColorPicker = React.forwardRef<ColorPickerRef, ColorPickerProps>(
     const [sat, setSat] = useState(initial.s);
     const [bright, setBright] = useState(initial.b);
     const [hexInput, setHexInput] = useState(value.toUpperCase());
-    const [recentColors, setRecentColors] = useState<string[]>([]);
+    const [alpha, setAlpha] = useState(
+      showAlpha ? parseAlphaFromHex(value) : 100,
+    );
+    // Internal saved colors state (used when not controlled)
+    const [internalSavedColors, setInternalSavedColors] = useState<string[]>([]);
     const [modalVisible, setModalVisible] = useState(false);
 
+    // Use controlled or internal saved colors
+    const isControlled = savedColorsProp !== undefined;
+    const savedColors = isControlled ? savedColorsProp : internalSavedColors;
+
     const currentHex = hsbToHex(hue, sat, bright);
-    const contrastColor = getContrastColor(currentHex);
+    const contrastColor = getContrastColor(currentHex, showAlpha ? alpha : 100);
 
     // Refs for stable handler closures
     const hueRef = useRef(hue);
     const satRef = useRef(sat);
     const brightRef = useRef(bright);
+    const alphaRef = useRef(alpha);
     hueRef.current = hue;
     satRef.current = sat;
     brightRef.current = bright;
+    alphaRef.current = alpha;
 
     // Sync hex input display — only update when NOT focused
     const hexInputFocusedRef = useRef(false);
@@ -113,27 +146,44 @@ export const ColorPicker = React.forwardRef<ColorPickerRef, ColorPickerProps>(
           setSat(hsb.s);
           setBright(hsb.b);
         }
+        if (showAlpha) {
+          const a = parseAlphaFromHex(value);
+          if (a !== alpha) setAlpha(a);
+        }
       }
     }
 
     const notifyChange = useCallback(
-      (h: number, s: number, b: number) => {
+      (h: number, s: number, b: number, a?: number) => {
         const hex = hsbToHex(h, s, b);
-        lastExternalValue.current = hex; // prevent sync-back
-        onChange?.(hex);
+        const result = showAlpha
+          ? appendAlphaToHex(hex, a ?? alphaRef.current)
+          : hex;
+        lastExternalValue.current = result; // prevent sync-back
+        onChange?.(result);
       },
-      [onChange],
+      [onChange, showAlpha],
     );
 
-    const addToRecent = useCallback(
-      (hex: string) => {
-        setRecentColors((prev) => {
-          const filtered = prev.filter((c) => c !== hex);
-          return [hex, ...filtered].slice(0, maxRecentColors);
+    const handleSaveColor = useCallback(() => {
+      const hex = showAlpha ? appendAlphaToHex(currentHex, alpha) : currentHex;
+      if (isControlled) {
+        onSaveColorProp?.(hex);
+      } else {
+        setInternalSavedColors((prev) => {
+          if (prev.includes(hex)) return prev;
+          return [hex, ...prev];
         });
-      },
-      [maxRecentColors],
-    );
+      }
+    }, [currentHex, alpha, showAlpha, isControlled, onSaveColorProp]);
+
+    const handleClearSaved = useCallback(() => {
+      if (isControlled) {
+        onClearSavedProp?.();
+      } else {
+        setInternalSavedColors([]);
+      }
+    }, [isControlled, onClearSavedProp]);
 
     const handleHueChange = useCallback(
       (h: number) => {
@@ -152,6 +202,14 @@ export const ColorPicker = React.forwardRef<ColorPickerRef, ColorPickerProps>(
       [notifyChange],
     );
 
+    const handleAlphaChange = useCallback(
+      (a: number) => {
+        setAlpha(a);
+        notifyChange(hueRef.current, satRef.current, brightRef.current, a);
+      },
+      [notifyChange],
+    );
+
     const handleHexSubmit = useCallback(() => {
       const clean = hexInput.startsWith("#") ? hexInput : `#${hexInput}`;
       if (isValidHex(clean)) {
@@ -160,21 +218,26 @@ export const ColorPicker = React.forwardRef<ColorPickerRef, ColorPickerProps>(
         setSat(hsb.s);
         setBright(hsb.b);
         notifyChange(hsb.h, hsb.s, hsb.b);
-        addToRecent(clean);
       } else {
         setHexInput(currentHex.toUpperCase());
       }
-    }, [hexInput, currentHex, notifyChange, addToRecent]);
+    }, [hexInput, currentHex, notifyChange]);
 
-    const handleRecentSelect = useCallback(
+    const handleSelectColor = useCallback(
       (hex: string) => {
         const hsb = hexToHsb(hex);
         setHue(hsb.h);
         setSat(hsb.s);
         setBright(hsb.b);
-        notifyChange(hsb.h, hsb.s, hsb.b);
+        if (showAlpha) {
+          const a = parseAlphaFromHex(hex);
+          setAlpha(a);
+          notifyChange(hsb.h, hsb.s, hsb.b, a);
+        } else {
+          notifyChange(hsb.h, hsb.s, hsb.b);
+        }
       },
-      [notifyChange],
+      [notifyChange, showAlpha],
     );
 
     useImperativeHandle(
@@ -190,21 +253,22 @@ export const ColorPicker = React.forwardRef<ColorPickerRef, ColorPickerProps>(
           lastExternalValue.current = hex;
           notifyChange(hsb.h, hsb.s, hsb.b);
         },
-        clearRecent: () => setRecentColors([]),
+        clearSaved: () => handleClearSaved(),
         open: () => setModalVisible(true),
         close: () => setModalVisible(false),
       }),
-      [currentHex, notifyChange],
+      [currentHex, notifyChange, handleClearSaved],
     );
 
     const panelProps = {
       hue,
       sat,
       bright,
+      ...(showAlpha ? { alpha, onAlphaChange: handleAlphaChange } : {}),
       currentHex,
       contrastColor,
       hexInput,
-      recentColors,
+      savedColors,
       tabs,
       hueStripHeight,
       disabled,
@@ -220,14 +284,18 @@ export const ColorPicker = React.forwardRef<ColorPickerRef, ColorPickerProps>(
       onHexInputBlur: () => {
         hexInputFocusedRef.current = false;
       },
-      onSaveRecent: () => addToRecent(currentHex),
-      onRecentSelect: handleRecentSelect,
-      onClearRecent: () => setRecentColors([]),
+      palettes,
+      onSaveColor: handleSaveColor,
+      onSelectColor: handleSelectColor,
+      onClearSaved: isControlled ? onClearSavedProp : handleClearSaved,
     };
 
     if (inline) {
       return <PickerPanel {...panelProps} style={style} />;
     }
+
+    const swatchColor = showAlpha ? hexToRgba(currentHex, alpha) : currentHex;
+    const checkerSize = 6;
 
     return (
       <>
@@ -239,7 +307,7 @@ export const ColorPicker = React.forwardRef<ColorPickerRef, ColorPickerProps>(
               width: swatchSize,
               height: swatchSize,
               borderRadius: swatchBorderRadius,
-              backgroundColor: currentHex,
+              overflow: "hidden",
               borderWidth: 2,
               borderColor: t.border,
               shadowColor: "#000",
@@ -250,7 +318,70 @@ export const ColorPicker = React.forwardRef<ColorPickerRef, ColorPickerProps>(
             },
             swatchStyle,
           ]}
-        />
+        >
+          {showAlpha && (
+            <Svg
+              width={swatchSize}
+              height={swatchSize}
+              style={{ position: "absolute" }}
+            >
+              <Defs>
+                <Pattern
+                  id="swatchChecker"
+                  x="0"
+                  y="0"
+                  width={checkerSize * 2}
+                  height={checkerSize * 2}
+                  patternUnits="userSpaceOnUse"
+                >
+                  <Rect
+                    x="0"
+                    y="0"
+                    width={checkerSize}
+                    height={checkerSize}
+                    fill="#CCCCCC"
+                  />
+                  <Rect
+                    x={checkerSize}
+                    y="0"
+                    width={checkerSize}
+                    height={checkerSize}
+                    fill="#FFFFFF"
+                  />
+                  <Rect
+                    x="0"
+                    y={checkerSize}
+                    width={checkerSize}
+                    height={checkerSize}
+                    fill="#FFFFFF"
+                  />
+                  <Rect
+                    x={checkerSize}
+                    y={checkerSize}
+                    width={checkerSize}
+                    height={checkerSize}
+                    fill="#CCCCCC"
+                  />
+                </Pattern>
+              </Defs>
+              <Rect
+                x="0"
+                y="0"
+                width={swatchSize}
+                height={swatchSize}
+                fill="url(#swatchChecker)"
+              />
+            </Svg>
+          )}
+          <View
+            style={{
+              position: "absolute",
+              width: "100%",
+              height: "100%",
+              backgroundColor: swatchColor,
+            }}
+          />
+        </Pressable>
 
         <Modal
           visible={modalVisible}
@@ -258,29 +389,34 @@ export const ColorPicker = React.forwardRef<ColorPickerRef, ColorPickerProps>(
           animationType="fade"
           onRequestClose={() => setModalVisible(false)}
         >
-          <Pressable
-            onPress={() => setModalVisible(false)}
-            style={[
-              {
-                flex: 1,
-                backgroundColor: t.overlay,
-                justifyContent: "center",
-                alignItems: "center",
-                padding: 20,
-              },
-              modalStyle,
-            ]}
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: t.overlay,
+              justifyContent: "center",
+              alignItems: "center",
+              padding: 20,
+            }}
           >
+            {/* Overlay pressable - absolute positioned behind content */}
             <Pressable
-              onPress={() => {}}
-              style={{ width: "100%", alignItems: "center" }}
-            >
+              onPress={() => setModalVisible(false)}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+              }}
+            />
+            {/* Content - not wrapped in Pressable */}
+            <View style={[{ width: "100%", alignItems: "center" }, contentStyle]}>
               <PickerPanel
                 {...panelProps}
                 style={[{ width: panelWidth }, style]}
               />
-            </Pressable>
-          </Pressable>
+            </View>
+          </View>
         </Modal>
       </>
     );

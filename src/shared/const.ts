@@ -3,12 +3,11 @@ import type { ColorPickerLabels } from "../types/misc";
 export const DEFAULT_LABELS: Required<ColorPickerLabels> = {
   picker: "Picker",
   values: "Values",
-  recent: "Recent",
+  palettes: "Palettes",
   save: "Save",
-  savedColors: "Saved Colors",
-  clearAll: "Clear All",
-  noSavedColors: "No saved colors yet",
-  noSavedColorsHint: 'Tap "Save" to add colors here',
+  saved: "Saved",
+  clearSaved: "Clear",
+  noSavedColors: "No saved colors",
 };
 
 export const themes = {
