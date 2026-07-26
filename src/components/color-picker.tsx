@@ -66,6 +66,8 @@ export type ColorPickerProps = {
   onSaveColor?: (hex: string) => void;
   /** Called when user clears saved colors */
   onClearSaved?: () => void;
+  /** Called when user removes a specific saved color */
+  onRemoveSavedColor?: (hex: string) => void;
 };
 
 export const ColorPicker = React.forwardRef<ColorPickerRef, ColorPickerProps>(
@@ -73,7 +75,7 @@ export const ColorPicker = React.forwardRef<ColorPickerRef, ColorPickerProps>(
     {
       value = "#007AFF",
       onChange,
-      tabs = ["picker", "values", "palettes"],
+      tabs: tabsProp = ["picker", "values", "palettes"],
       panelWidth = "100%",
       hueStripHeight = 28,
       theme: themeName = "dark",
@@ -90,11 +92,15 @@ export const ColorPicker = React.forwardRef<ColorPickerRef, ColorPickerProps>(
       savedColors: savedColorsProp,
       onSaveColor: onSaveColorProp,
       onClearSaved: onClearSavedProp,
+      onRemoveSavedColor: onRemoveSavedColorProp,
     },
     ref,
   ) => {
     const t = themes[themeName];
     const labels = { ...DEFAULT_LABELS, ...userLabels };
+    // Picker tab is the primary way to choose a color — enforce its presence
+    // so consumers cannot accidentally produce a picker with no way to pick.
+    const tabs = tabsProp.includes("picker") ? tabsProp : (["picker", ...tabsProp] as TabId[]);
 
     const initial = hexToHsb(value);
     const [hue, setHue] = useState(initial.h);
@@ -185,6 +191,17 @@ export const ColorPicker = React.forwardRef<ColorPickerRef, ColorPickerProps>(
       }
     }, [isControlled, onClearSavedProp]);
 
+    const handleRemoveSavedColor = useCallback(
+      (hex: string) => {
+        if (isControlled) {
+          onRemoveSavedColorProp?.(hex);
+        } else {
+          setInternalSavedColors((prev) => prev.filter((c) => c !== hex));
+        }
+      },
+      [isControlled, onRemoveSavedColorProp],
+    );
+
     const handleHueChange = useCallback(
       (h: number) => {
         setHue(h);
@@ -254,10 +271,11 @@ export const ColorPicker = React.forwardRef<ColorPickerRef, ColorPickerProps>(
           notifyChange(hsb.h, hsb.s, hsb.b);
         },
         clearSaved: () => handleClearSaved(),
+        removeSavedColor: (hex: string) => handleRemoveSavedColor(hex),
         open: () => setModalVisible(true),
         close: () => setModalVisible(false),
       }),
-      [currentHex, notifyChange, handleClearSaved],
+      [currentHex, notifyChange, handleClearSaved, handleRemoveSavedColor],
     );
 
     const panelProps = {
@@ -288,6 +306,7 @@ export const ColorPicker = React.forwardRef<ColorPickerRef, ColorPickerProps>(
       onSaveColor: handleSaveColor,
       onSelectColor: handleSelectColor,
       onClearSaved: isControlled ? onClearSavedProp : handleClearSaved,
+      onRemoveSavedColor: handleRemoveSavedColor,
     };
 
     if (inline) {

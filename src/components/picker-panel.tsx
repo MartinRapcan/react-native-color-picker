@@ -38,6 +38,7 @@ type PickerPanelProps = {
   onSaveColor: () => void;
   onSelectColor: (hex: string) => void;
   onClearSaved?: () => void;
+  onRemoveSavedColor?: (hex: string) => void;
   palettes?: ColorPalette[];
   style?: StyleProp<ViewStyle>;
 }
@@ -65,6 +66,7 @@ export function PickerPanel({
   onSaveColor,
   onSelectColor,
   onClearSaved,
+  onRemoveSavedColor,
   palettes,
   labels,
   style,
@@ -78,7 +80,13 @@ export function PickerPanel({
   return (
     <View
       style={[
-        { backgroundColor: t.background, borderRadius: 20, overflow: "hidden" },
+        {
+          backgroundColor: t.background,
+          borderRadius: 20,
+          overflow: "hidden",
+          borderWidth: 1,
+          borderColor: t.border,
+        },
         style,
       ]}
     >
@@ -226,6 +234,7 @@ export function PickerPanel({
           labels={labels}
           onSelect={onSelectColor}
           onClearSaved={onClearSaved}
+          onRemoveSavedColor={onRemoveSavedColor}
         />
       )}
     </View>

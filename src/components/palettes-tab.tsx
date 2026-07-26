@@ -1,5 +1,5 @@
-import { memo, useCallback, useMemo, useState } from "react";
-import { FlatList, Pressable, ScrollView, Text, View } from "react-native";
+import { Fragment, memo, useCallback, useEffect, useMemo, useState } from "react";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import Svg, { Defs, Pattern, Rect } from "react-native-svg";
 import type { ColorPickerLabels, Theme } from "../types/misc";
 import { getContrastColor, hexToRgba, parseAlphaFromHex } from "../utils/colors";
@@ -21,6 +21,7 @@ type PalettesTabProps = {
   labels: Required<ColorPickerLabels>;
   onSelect: (hex: string) => void;
   onClearSaved?: () => void;
+  onRemoveSavedColor?: (hex: string) => void;
 };
 
 const SWATCH_SIZE = 56;
@@ -39,6 +40,7 @@ const ColorSwatch = memo(function ColorSwatch({
   disabled,
   borderColor,
   onSelect,
+  onRemove,
 }: {
   name?: string;
   hex: string;
@@ -46,72 +48,108 @@ const ColorSwatch = memo(function ColorSwatch({
   disabled: boolean;
   borderColor: string;
   onSelect: (hex: string) => void;
+  onRemove?: (hex: string) => void;
 }) {
   const colorAlpha = showAlpha ? parseAlphaFromHex(hex) : 100;
   const displayColor = showAlpha ? hexToRgba(hex, colorAlpha) : hex;
   const contrast = getContrastColor(hex, colorAlpha);
 
   return (
-    <Pressable
-      onPress={() => onSelect(hex)}
-      disabled={disabled}
-      style={({ pressed }) => ({
-        width: SWATCH_SIZE,
-        height: SWATCH_SIZE,
-        borderRadius: 8,
-        overflow: "hidden",
-        borderWidth: 1,
-        borderColor,
-        opacity: pressed ? 0.7 : 1,
-        justifyContent: "center",
-        alignItems: "center",
-      })}
-    >
-      {showAlpha && (
-        <Svg width={SWATCH_SIZE} height={SWATCH_SIZE} style={{ position: "absolute" }}>
-          <Defs>
-            <Pattern
-              id={`checker-${hex.replace("#", "")}`}
-              x="0"
-              y="0"
-              width={10}
-              height={10}
-              patternUnits="userSpaceOnUse"
-            >
-              <Rect x="0" y="0" width={5} height={5} fill="#CCCCCC" />
-              <Rect x={5} y="0" width={5} height={5} fill="#FFFFFF" />
-              <Rect x="0" y={5} width={5} height={5} fill="#FFFFFF" />
-              <Rect x={5} y={5} width={5} height={5} fill="#CCCCCC" />
-            </Pattern>
-          </Defs>
-          <Rect x="0" y="0" width={SWATCH_SIZE} height={SWATCH_SIZE} fill={`url(#checker-${hex.replace("#", "")})`} />
-        </Svg>
-      )}
-      <View
-        style={{
-          position: "absolute",
-          width: "100%",
-          height: "100%",
-          backgroundColor: displayColor,
+    // Outer wrapper — no overflow:hidden, so the remove button can extend past the swatch edge.
+    <View style={{ width: SWATCH_SIZE, height: SWATCH_SIZE }}>
+      <Pressable
+        onPress={() => onSelect(hex)}
+        disabled={disabled}
+        style={({ pressed }) => ({
+          width: SWATCH_SIZE,
+          height: SWATCH_SIZE,
+          borderRadius: 8,
+          overflow: "hidden",
+          borderWidth: 1,
+          borderColor,
+          opacity: pressed ? 0.7 : 1,
           justifyContent: "center",
           alignItems: "center",
-        }}
+        })}
       >
-        {name && (
+        {showAlpha && (
+          <Svg width={SWATCH_SIZE} height={SWATCH_SIZE} style={{ position: "absolute" }}>
+            <Defs>
+              <Pattern
+                id={`checker-${hex.replace("#", "")}`}
+                x="0"
+                y="0"
+                width={10}
+                height={10}
+                patternUnits="userSpaceOnUse"
+              >
+                <Rect x="0" y="0" width={5} height={5} fill="#CCCCCC" />
+                <Rect x={5} y="0" width={5} height={5} fill="#FFFFFF" />
+                <Rect x="0" y={5} width={5} height={5} fill="#FFFFFF" />
+                <Rect x={5} y={5} width={5} height={5} fill="#CCCCCC" />
+              </Pattern>
+            </Defs>
+            <Rect x="0" y="0" width={SWATCH_SIZE} height={SWATCH_SIZE} fill={`url(#checker-${hex.replace("#", "")})`} />
+          </Svg>
+        )}
+        <View
+          style={{
+            position: "absolute",
+            width: "100%",
+            height: "100%",
+            backgroundColor: displayColor,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          {name && (
+            <Text
+              style={{
+                color: contrast,
+                fontSize: 9,
+                fontWeight: "600",
+                textAlign: "center",
+              }}
+              numberOfLines={1}
+            >
+              {name}
+            </Text>
+          )}
+        </View>
+      </Pressable>
+      {onRemove && (
+        <Pressable
+          onPress={() => onRemove(hex)}
+          disabled={disabled}
+          hitSlop={6}
+          style={({ pressed }) => ({
+            position: "absolute",
+            top: -6,
+            right: -6,
+            width: 18,
+            height: 18,
+            borderRadius: 9,
+            backgroundColor: pressed ? "#B71C1C" : "#E53935",
+            borderWidth: 1.5,
+            borderColor: "#FFFFFF",
+            justifyContent: "center",
+            alignItems: "center",
+          })}
+        >
           <Text
             style={{
-              color: contrast,
-              fontSize: 9,
-              fontWeight: "600",
-              textAlign: "center",
+              color: "#FFFFFF",
+              fontSize: 12,
+              fontWeight: "700",
+              lineHeight: 13,
+              includeFontPadding: false,
             }}
-            numberOfLines={1}
           >
-            {name}
+            ×
           </Text>
-        )}
-      </View>
-    </Pressable>
+        </Pressable>
+      )}
+    </View>
   );
 });
 
@@ -132,8 +170,12 @@ export function PalettesTab({
   labels,
   onSelect,
   onClearSaved,
+  onRemoveSavedColor,
 }: PalettesTabProps) {
   const [activePaletteIndex, setActivePaletteIndex] = useState(0);
+  // Progressive rendering: render a small batch immediately, then stream the rest across frames.
+  // Keeps the tab click responsive for big palettes (e.g. Tailwind = 22 groups) without needing FlatList.
+  const [visibleCount, setVisibleCount] = useState(3);
 
   // User palettes first, then "Saved" at the end
   const allPalettes = useMemo(() => {
@@ -184,6 +226,22 @@ export function PalettesTab({
     return rows;
   }, [activePalette, savedColors]);
 
+  // Reset visible batch when the user switches palette — new list, start small again.
+  useEffect(() => {
+    setVisibleCount(3);
+  }, [activePaletteIndex]);
+
+  // Stream remaining rows across frames until everything is rendered.
+  useEffect(() => {
+    if (visibleCount >= rowData.length) return;
+    const raf = requestAnimationFrame(() => {
+      setVisibleCount((c) => Math.min(c + 3, rowData.length));
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [visibleCount, rowData.length]);
+
+  const visibleRows = useMemo(() => rowData.slice(0, visibleCount), [rowData, visibleCount]);
+
   const handleSelect = useCallback(
     (hex: string) => {
       onSelect(hex);
@@ -226,6 +284,7 @@ export function PalettesTab({
                   disabled={disabled}
                   borderColor={t.border}
                   onSelect={handleSelect}
+                  onRemove={onRemoveSavedColor}
                 />
               ))}
             </View>
@@ -285,7 +344,7 @@ export function PalettesTab({
 
       return null;
     },
-    [disabled, showAlpha, t, labels, handleSelect, onClearSaved]
+    [disabled, showAlpha, t, labels, handleSelect, onClearSaved, onRemoveSavedColor]
   );
 
   const keyExtractor = useCallback(
@@ -339,20 +398,17 @@ export function PalettesTab({
         </View>
       )}
 
-      {/* Colors grid - virtualized */}
-      <View style={{ height: 280 }}>
-        <FlatList
-          data={rowData}
-          renderItem={renderRow}
-          keyExtractor={keyExtractor}
-          contentContainerStyle={{ padding: 12, gap: 12 }}
-          showsVerticalScrollIndicator={false}
-          initialNumToRender={5}
-          maxToRenderPerBatch={5}
-          windowSize={5}
-          removeClippedSubviews
-        />
-      </View>
+      {/* Colors grid — plain ScrollView so consumers can nest the picker in their own scroll containers */}
+      <ScrollView
+        style={{ height: 280 }}
+        contentContainerStyle={{ padding: 12, gap: 12 }}
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+      >
+        {visibleRows.map((item, index) => (
+          <Fragment key={keyExtractor(item, index)}>{renderRow({ item })}</Fragment>
+        ))}
+      </ScrollView>
     </View>
   );
 }

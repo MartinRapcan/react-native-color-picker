@@ -28,7 +28,7 @@ export const themes = {
   light: {
     background: "#FFFFFF",
     surface: "rgba(0,0,0,0.04)",
-    border: "rgba(0,0,0,0.08)",
+    border: "rgba(0,0,0,0.12)",
     text: "#000000",
     textMuted: "rgba(0,0,0,0.5)",
     textDim: "rgba(0,0,0,0.2)",

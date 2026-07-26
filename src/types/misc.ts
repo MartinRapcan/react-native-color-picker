@@ -4,6 +4,7 @@ export type ColorPickerRef = {
   getColor: () => string;
   setColor: (hex: string) => void;
   clearSaved: () => void;
+  removeSavedColor: (hex: string) => void;
   open: () => void;
   close: () => void;
 };
