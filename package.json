@@ -1,6 +1,6 @@
 {
   "name": "@darthrapid/react-native-color-picker",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Lightweight HSB color picker for React Native with modal/inline modes, tabs, and i18n support. Pure JS, Expo compatible.",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
@@ -111,8 +111,12 @@
       "@commitlint/config-conventional"
     ],
     "rules": {
-      "body-max-line-length": [0],
-      "footer-max-line-length": [0]
+      "body-max-line-length": [
+        0
+      ],
+      "footer-max-line-length": [
+        0
+      ]
     }
   },
   "create-react-native-library": {
