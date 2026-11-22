@@ -5,6 +5,8 @@ import { ColorPicker } from "../../../src";
 
 export default function AlphaScreen() {
   const [color, setColor] = useState("#FF3B30CC");
+  // onChangeComplete fires once per interaction (finger lifted, value typed…)
+  const [committed, setCommitted] = useState(color);
 
   return (
     <>
@@ -17,9 +19,10 @@ export default function AlphaScreen() {
           <View>
             <Text style={styles.label}>8-digit hex</Text>
             <Text style={styles.value}>{color.toUpperCase()}</Text>
+            <Text style={styles.label}>onChangeComplete: {committed}</Text>
           </View>
         </View>
-        <ColorPicker value={color} onChange={setColor} showAlpha inline />
+        <ColorPicker value={color} onChange={setColor} onChangeComplete={setCommitted} showAlpha inline />
       </View>
     </>
   );

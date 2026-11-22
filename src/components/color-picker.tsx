@@ -1,445 +1,372 @@
-import React, {
-  useCallback,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "react";
+import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { Modal, Pressable, View, type DimensionValue, type StyleProp, type ViewStyle } from "react-native";
+import { useIsomorphicLayoutEffect, useLatestRef } from "../hooks/use-latest-ref";
+import { DEFAULT_COLOR, DEFAULT_LABELS, DEFAULT_TABS, resolveTheme } from "../shared/const";
+import type { ColorPickerLabels, ColorPickerRef, ColorPickerThemeProp, TabId } from "../types/misc";
 import {
-  Modal,
-  Pressable,
-  View,
-  type DimensionValue,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
-import Svg, { Defs, Pattern, Rect } from "react-native-svg";
-import { PickerPanel } from "./picker-panel";
-import type { ColorPickerLabels, ColorPickerRef, TabId } from "../types/misc";
-import { DEFAULT_LABELS, themes } from "../shared/const";
-import {
-  appendAlphaToHex,
+  formatColor,
   getContrastColor,
-  hexToHsb,
-  hexToRgba,
   hsbToHex,
-  isValidHex,
-  parseAlphaFromHex,
+  normalizeHex,
+  parseColor,
+  rgbToHsb,
+  type Hsb,
+  type Hsba,
+  type Rgb,
 } from "../utils/colors";
+import { ColorFill } from "./color-fill";
 import type { ColorPalette } from "./palettes-tab";
+import { PickerPanel, type PickerPanelProps } from "./picker-panel";
 
 export type ColorPickerProps = {
-  /** Current color value (hex string, 6 or 8 digit) */
+  /** Current color. Accepts #RGB, #RGBA, #RRGGBB and #RRGGBBAA (default `"#007AFF"`). */
   value?: string;
-  /** Called when color changes (returns #RRGGBB or #RRGGBBAA when showAlpha is true) */
+  /**
+   * Called whenever the color changes — on every drag frame, so keep it cheap.
+   * Receives `#RRGGBB`, or `#RRGGBBAA` when `showAlpha` is on (always uppercase).
+   */
   onChange?: (hex: string) => void;
-  /** Tabs to show (default: ["picker", "values", "palettes"]) */
-  tabs?: TabId[];
-  /** Panel width in modal mode (default: 320). Accepts number or "100%". Ignored in inline mode. */
+  /**
+   * Called once when an interaction finishes: finger lifted from the pad or a
+   * slider, a value typed in the Values tab, a palette swatch tapped, or
+   * `ref.setColor()`. Use it for expensive work (saving, network…).
+   */
+  onChangeComplete?: (hex: string) => void;
+  /** Tabs to show (default `["picker", "values", "palettes"]`). `"picker"` is added if missing. */
+  tabs?: readonly TabId[];
+  /** Tab selected when the picker is first shown (default: the first tab). */
+  initialTab?: TabId;
+  /** Panel width in modal mode (default `"100%"`). Ignored in inline mode. */
   panelWidth?: DimensionValue;
-  /** Hue strip height (default: 28) */
+  /** Hue / alpha slider height (default 28). */
   hueStripHeight?: number;
-  /** Theme (default: "dark") */
-  theme?: "light" | "dark";
-  /** Disable touch input */
+  /**
+   * `"dark"` (default), `"light"`, or a partial theme object merged on top of
+   * `base` — e.g. `{ base: "light", background: "#F5F5F5" }`.
+   */
+  theme?: ColorPickerThemeProp;
+  /** Disable all input. */
   disabled?: boolean;
-  /** Style for the picker panel */
+  /** Style for the picker panel. */
   style?: StyleProp<ViewStyle>;
-  /** Swatch size (default: 48) */
+  /** Swatch size (default 48). */
   swatchSize?: number;
-  /** Swatch border radius (default: 12) */
+  /** Swatch border radius (default 12). */
   swatchBorderRadius?: number;
-  /** Style for the swatch trigger */
+  /** Style for the swatch trigger. */
   swatchStyle?: StyleProp<ViewStyle>;
-  /** Render inline instead of modal (default: false) */
+  /** Render inline instead of a swatch + modal (default false). */
   inline?: boolean;
-  /** Override default labels for i18n */
+  /** Override default labels (i18n, including screen-reader labels). */
   labels?: ColorPickerLabels;
-  /** Style for content wrapper */
+  /** Style for the modal content wrapper. */
   contentStyle?: StyleProp<ViewStyle>;
-  /** Show alpha channel strip (default: false) */
+  /** Show the alpha slider and emit 8-digit hex (default false). */
   showAlpha?: boolean;
-  /** Color palettes for the palettes tab */
+  /** Color palettes for the Palettes tab. Define them outside render (or memoize) to avoid re-renders. */
   palettes?: ColorPalette[];
-  /** Saved colors (controlled) - if provided, component won't manage saved colors internally */
+  /** Saved colors (controlled). When provided, the component doesn't keep its own list. */
   savedColors?: string[];
-  /** Called when user saves a color */
+  /** Initial saved colors when uncontrolled. */
+  defaultSavedColors?: string[];
+  /** Called with the full new list whenever saved colors change (save, remove, clear). Works in both modes. */
+  onSavedColorsChange?: (colors: string[]) => void;
+  /** Called when the user saves a color. */
   onSaveColor?: (hex: string) => void;
-  /** Called when user clears saved colors */
+  /** Called when the user clears saved colors. */
   onClearSaved?: () => void;
-  /** Called when user removes a specific saved color */
+  /** Called when the user removes a single saved color. */
   onRemoveSavedColor?: (hex: string) => void;
+  /** Require a second tap on "Clear" before clearing saved colors (default true). */
+  confirmClear?: boolean;
 };
 
-export const ColorPicker = React.forwardRef<ColorPickerRef, ColorPickerProps>(
-  (
-    {
-      value = "#007AFF",
-      onChange,
-      tabs: tabsProp = ["picker", "values", "palettes"],
-      panelWidth = "100%",
-      hueStripHeight = 28,
-      theme: themeName = "dark",
-      disabled = false,
-      style,
-      swatchSize = 48,
-      swatchBorderRadius = 12,
-      swatchStyle,
-      inline = false,
-      labels: userLabels,
-      contentStyle,
-      showAlpha = false,
-      palettes,
-      savedColors: savedColorsProp,
-      onSaveColor: onSaveColorProp,
-      onClearSaved: onClearSavedProp,
-      onRemoveSavedColor: onRemoveSavedColorProp,
-    },
-    ref,
-  ) => {
-    const t = themes[themeName];
-    const labels = { ...DEFAULT_LABELS, ...userLabels };
-    // Picker tab is the primary way to choose a color — enforce its presence
-    // so consumers cannot accidentally produce a picker with no way to pick.
-    const tabs = tabsProp.includes("picker") ? tabsProp : (["picker", ...tabsProp] as TabId[]);
+function normalizeTabs(tabs: readonly TabId[]): TabId[] {
+  const unique = tabs.filter((tab, i) => tabs.indexOf(tab) === i);
+  // The picker tab is the primary way to choose a color — always keep it.
+  return unique.includes("picker") ? unique : ["picker", ...unique];
+}
 
-    const initial = hexToHsb(value);
-    const [hue, setHue] = useState(initial.h);
-    const [sat, setSat] = useState(initial.s);
-    const [bright, setBright] = useState(initial.b);
-    const [hexInput, setHexInput] = useState(value.toUpperCase());
-    const [alpha, setAlpha] = useState(
-      showAlpha ? parseAlphaFromHex(value) : 100,
-    );
-    // Internal saved colors state (used when not controlled)
-    const [internalSavedColors, setInternalSavedColors] = useState<string[]>([]);
-    const [modalVisible, setModalVisible] = useState(false);
+function initialColor(value: string, showAlpha: boolean): Hsba {
+  const parsed = parseColor(value) ?? parseColor(DEFAULT_COLOR)!;
+  return showAlpha ? parsed : { ...parsed, a: 100 };
+}
 
-    // Use controlled or internal saved colors
-    const isControlled = savedColorsProp !== undefined;
-    const savedColors = isControlled ? savedColorsProp : internalSavedColors;
-
-    const currentHex = hsbToHex(hue, sat, bright);
-    const contrastColor = getContrastColor(currentHex, showAlpha ? alpha : 100);
-
-    // Refs for stable handler closures
-    const hueRef = useRef(hue);
-    const satRef = useRef(sat);
-    const brightRef = useRef(bright);
-    const alphaRef = useRef(alpha);
-    hueRef.current = hue;
-    satRef.current = sat;
-    brightRef.current = bright;
-    alphaRef.current = alpha;
-
-    // Sync hex input display — only update when NOT focused
-    const hexInputFocusedRef = useRef(false);
-    const currentHexRef = useRef(currentHex);
-    currentHexRef.current = currentHex;
-
-    if (!hexInputFocusedRef.current && hexInput !== currentHex.toUpperCase()) {
-      setHexInput(currentHex.toUpperCase());
-    }
-
-    // Sync from external value prop — only when parent actually changes value
-    const lastExternalValue = useRef(value);
-    if (value !== lastExternalValue.current) {
-      lastExternalValue.current = value;
-      if (isValidHex(value)) {
-        const hsb = hexToHsb(value);
-        // Only update if actually different to avoid loops
-        if (hsb.h !== hue || hsb.s !== sat || hsb.b !== bright) {
-          setHue(hsb.h);
-          setSat(hsb.s);
-          setBright(hsb.b);
-        }
-        if (showAlpha) {
-          const a = parseAlphaFromHex(value);
-          if (a !== alpha) setAlpha(a);
-        }
-      }
-    }
-
-    const notifyChange = useCallback(
-      (h: number, s: number, b: number, a?: number) => {
-        const hex = hsbToHex(h, s, b);
-        const result = showAlpha
-          ? appendAlphaToHex(hex, a ?? alphaRef.current)
-          : hex;
-        lastExternalValue.current = result; // prevent sync-back
-        onChange?.(result);
-      },
-      [onChange, showAlpha],
-    );
-
-    const handleSaveColor = useCallback(() => {
-      const hex = showAlpha ? appendAlphaToHex(currentHex, alpha) : currentHex;
-      if (isControlled) {
-        onSaveColorProp?.(hex);
-      } else {
-        setInternalSavedColors((prev) => {
-          if (prev.includes(hex)) return prev;
-          return [hex, ...prev];
-        });
-      }
-    }, [currentHex, alpha, showAlpha, isControlled, onSaveColorProp]);
-
-    const handleClearSaved = useCallback(() => {
-      if (isControlled) {
-        onClearSavedProp?.();
-      } else {
-        setInternalSavedColors([]);
-      }
-    }, [isControlled, onClearSavedProp]);
-
-    const handleRemoveSavedColor = useCallback(
-      (hex: string) => {
-        if (isControlled) {
-          onRemoveSavedColorProp?.(hex);
-        } else {
-          setInternalSavedColors((prev) => prev.filter((c) => c !== hex));
-        }
-      },
-      [isControlled, onRemoveSavedColorProp],
-    );
-
-    const handleHueChange = useCallback(
-      (h: number) => {
-        setHue(h);
-        notifyChange(h, satRef.current, brightRef.current);
-      },
-      [notifyChange],
-    );
-
-    const handleSatBrightChange = useCallback(
-      ({ s, b }: { s: number; b: number }) => {
-        setSat(s);
-        setBright(b);
-        notifyChange(hueRef.current, s, b);
-      },
-      [notifyChange],
-    );
-
-    const handleAlphaChange = useCallback(
-      (a: number) => {
-        setAlpha(a);
-        notifyChange(hueRef.current, satRef.current, brightRef.current, a);
-      },
-      [notifyChange],
-    );
-
-    const handleHexSubmit = useCallback(() => {
-      const clean = hexInput.startsWith("#") ? hexInput : `#${hexInput}`;
-      if (isValidHex(clean)) {
-        const hsb = hexToHsb(clean);
-        setHue(hsb.h);
-        setSat(hsb.s);
-        setBright(hsb.b);
-        notifyChange(hsb.h, hsb.s, hsb.b);
-      } else {
-        setHexInput(currentHex.toUpperCase());
-      }
-    }, [hexInput, currentHex, notifyChange]);
-
-    const handleSelectColor = useCallback(
-      (hex: string) => {
-        const hsb = hexToHsb(hex);
-        setHue(hsb.h);
-        setSat(hsb.s);
-        setBright(hsb.b);
-        if (showAlpha) {
-          const a = parseAlphaFromHex(hex);
-          setAlpha(a);
-          notifyChange(hsb.h, hsb.s, hsb.b, a);
-        } else {
-          notifyChange(hsb.h, hsb.s, hsb.b);
-        }
-      },
-      [notifyChange, showAlpha],
-    );
-
-    useImperativeHandle(
-      ref,
-      () => ({
-        getColor: () => currentHex,
-        setColor: (hex: string) => {
-          if (!isValidHex(hex)) return;
-          const hsb = hexToHsb(hex);
-          setHue(hsb.h);
-          setSat(hsb.s);
-          setBright(hsb.b);
-          lastExternalValue.current = hex;
-          notifyChange(hsb.h, hsb.s, hsb.b);
-        },
-        clearSaved: () => handleClearSaved(),
-        removeSavedColor: (hex: string) => handleRemoveSavedColor(hex),
-        open: () => setModalVisible(true),
-        close: () => setModalVisible(false),
-      }),
-      [currentHex, notifyChange, handleClearSaved, handleRemoveSavedColor],
-    );
-
-    const panelProps = {
-      hue,
-      sat,
-      bright,
-      ...(showAlpha ? { alpha, onAlphaChange: handleAlphaChange } : {}),
-      currentHex,
-      contrastColor,
-      hexInput,
-      savedColors,
-      tabs,
-      hueStripHeight,
-      disabled,
-      t,
-      labels,
-      onHueChange: handleHueChange,
-      onSatBrightChange: handleSatBrightChange,
-      onHexInputChange: setHexInput,
-      onHexSubmit: handleHexSubmit,
-      onHexInputFocus: () => {
-        hexInputFocusedRef.current = true;
-      },
-      onHexInputBlur: () => {
-        hexInputFocusedRef.current = false;
-      },
-      palettes,
-      onSaveColor: handleSaveColor,
-      onSelectColor: handleSelectColor,
-      onClearSaved: isControlled ? onClearSavedProp : handleClearSaved,
-      onRemoveSavedColor: handleRemoveSavedColor,
-    };
-
-    if (inline) {
-      return <PickerPanel {...panelProps} style={style} />;
-    }
-
-    const swatchColor = showAlpha ? hexToRgba(currentHex, alpha) : currentHex;
-    const checkerSize = 6;
-
-    return (
-      <>
-        <Pressable
-          onPress={() => setModalVisible(true)}
-          disabled={disabled}
-          style={[
-            {
-              width: swatchSize,
-              height: swatchSize,
-              borderRadius: swatchBorderRadius,
-              overflow: "hidden",
-              borderWidth: 2,
-              borderColor: t.border,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.15,
-              shadowRadius: 4,
-              elevation: 3,
-            },
-            swatchStyle,
-          ]}
-        >
-          {showAlpha && (
-            <Svg
-              width={swatchSize}
-              height={swatchSize}
-              style={{ position: "absolute" }}
-            >
-              <Defs>
-                <Pattern
-                  id="swatchChecker"
-                  x="0"
-                  y="0"
-                  width={checkerSize * 2}
-                  height={checkerSize * 2}
-                  patternUnits="userSpaceOnUse"
-                >
-                  <Rect
-                    x="0"
-                    y="0"
-                    width={checkerSize}
-                    height={checkerSize}
-                    fill="#CCCCCC"
-                  />
-                  <Rect
-                    x={checkerSize}
-                    y="0"
-                    width={checkerSize}
-                    height={checkerSize}
-                    fill="#FFFFFF"
-                  />
-                  <Rect
-                    x="0"
-                    y={checkerSize}
-                    width={checkerSize}
-                    height={checkerSize}
-                    fill="#FFFFFF"
-                  />
-                  <Rect
-                    x={checkerSize}
-                    y={checkerSize}
-                    width={checkerSize}
-                    height={checkerSize}
-                    fill="#CCCCCC"
-                  />
-                </Pattern>
-              </Defs>
-              <Rect
-                x="0"
-                y="0"
-                width={swatchSize}
-                height={swatchSize}
-                fill="url(#swatchChecker)"
-              />
-            </Svg>
-          )}
-          <View
-            style={{
-              position: "absolute",
-              width: "100%",
-              height: "100%",
-              backgroundColor: swatchColor,
-            }}
-          />
-        </Pressable>
-
-        <Modal
-          visible={modalVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setModalVisible(false)}
-        >
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: t.overlay,
-              justifyContent: "center",
-              alignItems: "center",
-              padding: 20,
-            }}
-          >
-            {/* Overlay pressable - absolute positioned behind content */}
-            <Pressable
-              onPress={() => setModalVisible(false)}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-              }}
-            />
-            {/* Content - not wrapped in Pressable */}
-            <View style={[{ width: "100%", alignItems: "center" }, contentStyle]}>
-              <PickerPanel
-                {...panelProps}
-                style={[{ width: panelWidth }, style]}
-              />
-            </View>
-          </View>
-        </Modal>
-      </>
-    );
+export const ColorPicker = forwardRef<ColorPickerRef, ColorPickerProps>(function ColorPicker(
+  {
+    value = DEFAULT_COLOR,
+    onChange,
+    onChangeComplete,
+    tabs: tabsProp = DEFAULT_TABS,
+    initialTab,
+    panelWidth = "100%",
+    hueStripHeight = 28,
+    theme: themeProp = "dark",
+    disabled = false,
+    style,
+    swatchSize = 48,
+    swatchBorderRadius = 12,
+    swatchStyle,
+    inline = false,
+    labels: userLabels,
+    contentStyle,
+    showAlpha = false,
+    palettes,
+    savedColors: savedColorsProp,
+    defaultSavedColors,
+    onSavedColorsChange,
+    onSaveColor,
+    onClearSaved,
+    onRemoveSavedColor,
+    confirmClear = true,
   },
-);
+  ref,
+) {
+  // Inline objects/arrays are common for these props — key the memos by content
+  // so the memoized children don't re-render on every parent render.
+  const themeKey = typeof themeProp === "string" ? themeProp : JSON.stringify(themeProp);
+  // oxlint-disable-next-line react/exhaustive-deps
+  const t = useMemo(() => resolveTheme(themeProp), [themeKey]);
+  const labelsKey = JSON.stringify(userLabels ?? null);
+  // oxlint-disable-next-line react/exhaustive-deps
+  const labels = useMemo(() => ({ ...DEFAULT_LABELS, ...userLabels }), [labelsKey]);
+  const tabsKey = tabsProp.join(",");
+  // oxlint-disable-next-line react/exhaustive-deps
+  const tabs = useMemo(() => normalizeTabs(tabsProp), [tabsKey]);
 
-ColorPicker.displayName = "ColorPicker";
+  // ── Color state ────────────────────────────────────────────────────────────
+  // HSBA is stored as unrounded floats: hex → HSB → hex is lossless, and the
+  // hue survives greys/black/white.
+  const [color, setColor] = useState<Hsba>(() => initialColor(value, showAlpha));
+  const colorRef = useRef(color);
+  useIsomorphicLayoutEffect(() => {
+    colorRef.current = color;
+  }, [color]);
+
+  // Sync from the `value` prop. This is React's "adjust state when a prop
+  // changes" pattern (state only, no refs written during render). Echoes of
+  // our own onChange are ignored, so in-flight floats aren't re-quantized.
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    const parsed = parseColor(value, color.h);
+    if (parsed) {
+      const next = showAlpha ? parsed : { ...parsed, a: 100 };
+      if (formatColor(next, showAlpha) !== formatColor(color, showAlpha)) setColor(next);
+    }
+  }
+
+  const showAlphaRef = useLatestRef(showAlpha);
+  const onChangeRef = useLatestRef(onChange);
+  const onChangeCompleteRef = useLatestRef(onChangeComplete);
+
+  /** Applies a change, notifies `onChange` (only if the hex actually changed) and optionally `onChangeComplete`. */
+  const apply = useCallback(
+    (patch: Partial<Hsba>, complete: boolean) => {
+      const withAlpha = showAlphaRef.current;
+      const prev = colorRef.current;
+      const next: Hsba = { ...prev, ...patch };
+      if (!withAlpha) next.a = 100;
+      colorRef.current = next;
+      setColor(next);
+      const out = formatColor(next, withAlpha);
+      if (out !== formatColor(prev, withAlpha)) onChangeRef.current?.(out);
+      if (complete) onChangeCompleteRef.current?.(out);
+    },
+    [showAlphaRef, onChangeRef, onChangeCompleteRef],
+  );
+
+  /** Parses a hex and applies it. Keeps the hue for greys; keeps alpha unless the hex has one (or `resetAlpha`). */
+  const applyHex = useCallback(
+    (hex: string, resetAlpha: boolean) => {
+      const full = normalizeHex(hex);
+      const parsed = full ? parseColor(full, colorRef.current.h) : null;
+      if (!full || !parsed) return;
+      const { a, ...hsb } = parsed;
+      apply(full.length === 9 || resetAlpha ? { ...hsb, a } : hsb, true);
+    },
+    [apply],
+  );
+
+  const handleHueChange = useCallback((h: number) => apply({ h }, false), [apply]);
+  const handleSatBrightChange = useCallback(
+    ({ s, b }: { s: number; b: number }) => apply({ s, b }, false),
+    [apply],
+  );
+  const handleAlphaChange = useCallback((a: number) => apply({ a }, false), [apply]);
+  const handleChangeEnd = useCallback(() => {
+    onChangeCompleteRef.current?.(formatColor(colorRef.current, showAlphaRef.current));
+  }, [onChangeCompleteRef, showAlphaRef]);
+
+  const handleHexCommit = useCallback((hex: string) => applyHex(hex, false), [applyHex]);
+  const handleRgbCommit = useCallback((rgb: Rgb) => apply(rgbToHsb(rgb, colorRef.current.h), true), [apply]);
+  const handleHsbCommit = useCallback((hsb: Partial<Hsb>) => apply(hsb, true), [apply]);
+  const handleAlphaCommit = useCallback((a: number) => apply({ a }, true), [apply]);
+  // Palette colors are complete colors: a 6-digit swatch resets alpha to 100%.
+  const handleSelectColor = useCallback((hex: string) => applyHex(hex, true), [applyHex]);
+
+  // ── Saved colors ───────────────────────────────────────────────────────────
+  const isControlled = savedColorsProp !== undefined;
+  const [internalSaved, setInternalSaved] = useState<string[]>(() => defaultSavedColors ?? []);
+  const savedColors = isControlled ? savedColorsProp : internalSaved;
+  const savedRef = useLatestRef(savedColors);
+  const isControlledRef = useLatestRef(isControlled);
+  const savedCallbacksRef = useLatestRef({
+    onSaveColor,
+    onClearSaved,
+    onRemoveSavedColor,
+    onSavedColorsChange,
+  });
+
+  const updateSaved = useCallback(
+    (next: string[]) => {
+      savedRef.current = next; // so two quick actions before re-render don't lose one
+      if (!isControlledRef.current) setInternalSaved(next);
+      savedCallbacksRef.current.onSavedColorsChange?.(next);
+    },
+    [savedRef, isControlledRef, savedCallbacksRef],
+  );
+
+  const handleSaveColor = useCallback(() => {
+    const hex = formatColor(colorRef.current, showAlphaRef.current);
+    if (savedRef.current.some((c) => normalizeHex(c) === hex)) return;
+    savedCallbacksRef.current.onSaveColor?.(hex);
+    updateSaved([hex, ...savedRef.current]);
+  }, [showAlphaRef, savedRef, savedCallbacksRef, updateSaved]);
+
+  const handleRemoveSavedColor = useCallback(
+    (hex: string) => {
+      savedCallbacksRef.current.onRemoveSavedColor?.(hex);
+      updateSaved(savedRef.current.filter((c) => c !== hex));
+    },
+    [savedRef, savedCallbacksRef, updateSaved],
+  );
+
+  const handleClearSaved = useCallback(() => {
+    savedCallbacksRef.current.onClearSaved?.();
+    updateSaved([]);
+  }, [savedCallbacksRef, updateSaved]);
+
+  // In controlled mode, only offer remove/clear when the parent can react to it.
+  const canEditSaved = !isControlled || !!onSavedColorsChange;
+
+  // ── Tabs & modal ───────────────────────────────────────────────────────────
+  const [activeTabState, setActiveTab] = useState<TabId>(() =>
+    initialTab && tabs.includes(initialTab) ? initialTab : tabs[0]!,
+  );
+  // Kept here (not in the panel) so the selected tab survives closing the modal.
+  const activeTab = tabs.includes(activeTabState) ? activeTabState : tabs[0]!;
+  const [modalVisible, setModalVisible] = useState(false);
+  const openModal = useCallback(() => setModalVisible(true), []);
+  const closeModal = useCallback(() => setModalVisible(false), []);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      getColor: () => formatColor(colorRef.current, showAlphaRef.current),
+      setColor: (hex: string) => applyHex(hex, false),
+      clearSaved: handleClearSaved,
+      removeSavedColor: handleRemoveSavedColor,
+      open: openModal,
+      close: closeModal,
+    }),
+    [showAlphaRef, applyHex, handleClearSaved, handleRemoveSavedColor, openModal, closeModal],
+  );
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  const currentHex = hsbToHex(color.h, color.s, color.b);
+  const outputHex = formatColor(color, showAlpha);
+  const displayAlpha = showAlpha ? color.a : 100;
+
+  const panelProps: PickerPanelProps = {
+    hue: color.h,
+    sat: color.s,
+    bright: color.b,
+    alpha: showAlpha ? color.a : undefined,
+    currentHex,
+    outputHex,
+    contrastColor: getContrastColor(currentHex, displayAlpha),
+    savedColors,
+    tabs,
+    activeTab,
+    onTabChange: setActiveTab,
+    hueStripHeight,
+    disabled,
+    t,
+    labels,
+    palettes,
+    confirmClear,
+    onHueChange: handleHueChange,
+    onSatBrightChange: handleSatBrightChange,
+    onAlphaChange: handleAlphaChange,
+    onChangeEnd: handleChangeEnd,
+    onHexCommit: handleHexCommit,
+    onRgbCommit: handleRgbCommit,
+    onHsbCommit: handleHsbCommit,
+    onAlphaCommit: handleAlphaCommit,
+    onSaveColor: handleSaveColor,
+    onSelectColor: handleSelectColor,
+    onClearSaved: canEditSaved || onClearSaved ? handleClearSaved : undefined,
+    onRemoveSavedColor: canEditSaved || onRemoveSavedColor ? handleRemoveSavedColor : undefined,
+  };
+
+  if (inline) {
+    return <PickerPanel {...panelProps} style={style} />;
+  }
+
+  return (
+    <>
+      <Pressable
+        testID="color-picker-swatch"
+        onPress={openModal}
+        disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel={labels.openPicker}
+        accessibilityValue={{ text: outputHex }}
+        accessibilityState={{ disabled, expanded: modalVisible }}
+        style={[
+          {
+            width: swatchSize,
+            height: swatchSize,
+            borderRadius: swatchBorderRadius,
+            overflow: "hidden",
+            borderWidth: 2,
+            borderColor: t.border,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.15,
+            shadowRadius: 4,
+            elevation: 3,
+          },
+          swatchStyle,
+        ]}
+      >
+        <ColorFill color={currentHex} alpha={displayAlpha} />
+      </Pressable>
+
+      <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={closeModal}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: t.overlay,
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 20,
+          }}
+        >
+          {/* Backdrop — absolutely positioned behind the content */}
+          <Pressable
+            testID="color-picker-backdrop"
+            onPress={closeModal}
+            accessibilityRole="button"
+            accessibilityLabel={labels.closePicker}
+            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+          <View style={[{ width: "100%", alignItems: "center" }, contentStyle]}>
+            <PickerPanel {...panelProps} style={[{ width: panelWidth }, style]} />
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+});

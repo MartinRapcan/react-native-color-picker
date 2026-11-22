@@ -16,7 +16,7 @@ const DEMOS = [
   {
     href: "/alpha",
     title: "Alpha Channel",
-    description: "Alpha slider + 8-digit hex (#RRGGBBAA) output",
+    description: "Alpha slider + 8-digit hex (#RRGGBBAA) output, onChangeComplete",
   },
   {
     href: "/palettes",
@@ -30,8 +30,8 @@ const DEMOS = [
   },
   {
     href: "/theme",
-    title: "Light / Dark Theme",
-    description: "Toggle between the two built-in themes",
+    title: "Themes",
+    description: "Built-in light / dark themes and a custom theme override",
   },
   {
     href: "/i18n",

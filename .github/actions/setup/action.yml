@@ -18,9 +18,9 @@ runs:
       with:
         path: |
           **/node_modules
-        key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}-${{ hashFiles('**/package.json', '!node_modules/**') }}
+        key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}-${{ hashFiles('**/package.json', '!node_modules/**') }}
         restore-keys: |
-          ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+          ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
           ${{ runner.os }}-bun-
 
     - name: Install dependencies

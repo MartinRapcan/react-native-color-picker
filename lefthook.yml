@@ -3,8 +3,14 @@ pre-commit:
   commands:
 
     types:
-      glob: "*.{js,ts, jsx, tsx}"
+      glob: "*.{js,ts,jsx,tsx}"
       run: bun run typecheck
+    lint:
+      glob: "src/**/*.{ts,tsx}"
+      run: bunx oxlint --deny-warnings {staged_files}
+    format:
+      glob: "src/**/*.{ts,tsx}"
+      run: bunx oxfmt --check {staged_files}
 commit-msg:
   parallel: true
   commands:

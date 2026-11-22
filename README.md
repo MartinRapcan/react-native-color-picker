@@ -16,6 +16,20 @@ bun add react-native-svg
 
 Requires `react-native-svg >= 15.15.5` (peer). Works with anything Expo SDK 54+ ships.
 
+## What's new in 1.3.0
+
+- **Lossless colors** — HSB is kept as unrounded floats internally, so the color you pass in (or tap in a palette) is exactly the color you get back. Previously ~87 % of hex colors drifted by one step (e.g. `#007AFF` → `#007BFF`).
+- **Hue is preserved for greys** — picking a grey / black / white no longer snaps the hue slider to red.
+- **`onChangeComplete`** — fires once when an interaction ends (finger lifted, value typed, swatch tapped). `onChange` now also skips frames where the hex didn't change.
+- **Editable Values tab** — type R, G, B, H, S, B and A directly. The hex field accepts `#RGB`, `#RGBA`, `#RRGGBB` and `#RRGGBBAA` (8 digits when `showAlpha` is on) and commits exactly once.
+- **Accessibility** — sliders are `adjustable` with values and increment/decrement actions; swatches, tabs and buttons have roles and labels (all translatable via `labels`).
+- **Custom themes** — `theme={{ base: "light", background: "#F5F5F5" }}`; `ColorPickerTheme` and `themes` are exported.
+- **Saved colors** — `onSavedColorsChange(colors)` and `defaultSavedColors`; "Clear" asks for confirmation (`confirmClear`, default `true`).
+- **`initialTab`**, and the selected tab is remembered when the modal is closed and reopened.
+- **Ref API** — `getColor()` includes alpha when `showAlpha` is on; `setColor()` accepts any hex notation and keeps the current alpha unless the hex has one.
+- **Fixes** — unique SVG gradient ids (two pickers on one web page no longer share gradients), thumbs no longer get clipped at the pad corners, touch handling no longer depends on an async `measure()`, invalid `value` falls back to the default instead of producing `NaN`.
+- Requires React ≥ 18 (`useId`).
+
 ## What's new in 1.2.0
 
 - **`onRemoveSavedColor` prop** and **`ref.removeSavedColor(hex)`** — delete a specific saved color in controlled or programmatic flows.
@@ -72,8 +86,28 @@ The picker has 3 tabs. You choose which are shown; **`picker` is always included
 | Tab | Content |
 |---|---|
 | `picker` | Saturation/brightness pad + hue slider (+ alpha slider when enabled) |
-| `values` | Hex input, RGB and HSB values |
+| `values` | Editable hex, RGB(A) and HSB values |
 | `palettes` | Color palettes + saved colors grid (with per-item delete) |
+
+Use `initialTab` to choose which tab is selected first:
+
+```tsx
+<ColorPicker initialTab="palettes" />
+```
+
+## onChange vs onChangeComplete
+
+`onChange` fires on every drag frame. Use `onChangeComplete` for anything expensive (saving, network, analytics) — it fires once per interaction.
+
+```tsx
+<ColorPicker
+  value={color}
+  onChange={setColor}
+  onChangeComplete={(hex) => saveToServer(hex)}
+/>
+```
+
+Both receive uppercase `#RRGGBB`, or `#RRGGBBAA` when `showAlpha` is on. `value` accepts `#RGB`, `#RGBA`, `#RRGGBB` and `#RRGGBBAA`.
 
 ## Alpha Channel
 
@@ -166,12 +200,27 @@ const [savedColors, setSavedColors] = useState<string[]>([]);
 />
 ```
 
+Or, simpler, handle every change with one callback:
+
+```tsx
+const [savedColors, setSavedColors] = useState<string[]>([]);
+
+<ColorPicker savedColors={savedColors} onSavedColorsChange={setSavedColors} />
+```
+
+Uncontrolled pickers can start with `defaultSavedColors={["#FF3B30", "#34C759"]}`.
+
 Callbacks:
 | Callback | Fired when |
 |---|---|
-| `onSaveColor(hex)` | User taps **Save** in the color preview header |
+| `onSavedColorsChange(colors)` | The list changes in any way (save, remove, clear) — receives the new list |
+| `onSaveColor(hex)` | User taps **Save** in the color preview header (duplicates are ignored) |
 | `onRemoveSavedColor(hex)` | User taps the red ✕ on a saved swatch |
-| `onClearSaved()` | User taps **Clear** in the Saved section header |
+| `onClearSaved()` | User confirms **Clear** in the Saved section header |
+
+"Clear" needs a second tap to confirm (the label changes to `labels.confirmClear`). Pass `confirmClear={false}` to clear on the first tap.
+
+In controlled mode the ✕ badges and the Clear button are only shown when you pass a handler for them (or `onSavedColorsChange`).
 
 ## Light / Dark Theme
 
@@ -181,6 +230,24 @@ Callbacks:
 ```
 
 The panel has a subtle border in both themes so it stays visible on any background (including white).
+
+### Custom theme
+
+Pass a partial theme — it's merged on top of `base` (`"dark"` by default):
+
+```tsx
+<ColorPicker
+  theme={{
+    base: "light",
+    background: "#F7F7F8",
+    tabIndicator: "#6D28D9",
+    tabActive: "#6D28D9",
+    tabActiveText: "#FFFFFF",
+  }}
+/>
+```
+
+Available keys (`ColorPickerTheme`): `background`, `surface`, `border`, `text`, `textMuted`, `textDim`, `inputBg`, `thumbBorder`, `overlay`, `tabActive`, `tabInactive`, `tabIndicator`, `tabActiveText`, `danger`, `dangerPressed`, `onDanger`. The built-in themes are exported as `themes.light` / `themes.dark`.
 
 ## i18n / Custom Labels
 
@@ -195,21 +262,42 @@ Override only the labels you want — the rest stays English by default.
     save: "Uložiť",
     saved: "Uložené",
     clearSaved: "Vymazať",
+    confirmClear: "Naozaj?",
     noSavedColors: "Žiadne uložené farby",
+    // Screen-reader labels
+    hue: "Odtieň",
+    saturation: "Sýtosť",
+    brightness: "Jas",
+    alpha: "Priehľadnosť",
+    hex: "Hex farba",
+    red: "Červená",
+    green: "Zelená",
+    blue: "Modrá",
+    openPicker: "Otvoriť výber farby",
+    closePicker: "Zavrieť výber farby",
+    removeColor: "Odstrániť farbu",
   }}
 />
 ```
+
+## Accessibility
+
+- The saturation/brightness pad and the hue/alpha sliders use `accessibilityRole="adjustable"` with spoken values (e.g. "210°", "80%") and support increment/decrement (swipe up/down in VoiceOver/TalkBack). The pad also exposes custom actions for brightness.
+- Swatches, tabs, the Save/Clear buttons and the ✕ badges have roles and labels.
+- All spoken strings come from `labels`, so they can be translated.
 
 ## Props
 
 | Prop | Type | Default | Description |
 |---|---|---|---|
-| `value` | `string` | `"#007AFF"` | Current color (6- or 8-digit hex) |
-| `onChange` | `(hex: string) => void` | – | Called when color changes |
+| `value` | `string` | `"#007AFF"` | Current color (`#RGB`, `#RGBA`, `#RRGGBB` or `#RRGGBBAA`) |
+| `onChange` | `(hex: string) => void` | – | Called when the color changes (every drag frame) |
+| `onChangeComplete` | `(hex: string) => void` | – | Called once when an interaction ends |
 | `tabs` | `TabId[]` | `["picker", "values", "palettes"]` | Which tabs to show. `"picker"` is auto-prepended if missing |
+| `initialTab` | `TabId` | first tab | Tab selected when the picker is first shown |
 | `panelWidth` | `DimensionValue` | `"100%"` | Panel width in modal mode. Ignored when `inline` |
 | `hueStripHeight` | `number` | `28` | Hue/alpha slider height |
-| `theme` | `"light" \| "dark"` | `"dark"` | Color theme |
+| `theme` | `"light" \| "dark" \| Partial<ColorPickerTheme> & { base? }` | `"dark"` | Built-in theme or a partial override |
 | `disabled` | `boolean` | `false` | Disables all touch input |
 | `style` | `ViewStyle` | – | Style for the picker panel |
 | `swatchSize` | `number` | `48` | Size of the modal-trigger swatch |
@@ -219,8 +307,11 @@ Override only the labels you want — the rest stays English by default.
 | `labels` | `ColorPickerLabels` | – | Custom labels (i18n) |
 | `contentStyle` | `ViewStyle` | – | Style for the modal content wrapper |
 | `showAlpha` | `boolean` | `false` | Show alpha channel slider |
-| `palettes` | `ColorPalette[]` | – | Color palettes for the Palettes tab |
+| `palettes` | `ColorPalette[]` | – | Color palettes for the Palettes tab (define outside render or memoize) |
 | `savedColors` | `string[]` | – | Saved colors (controlled). If provided, component won't manage saved colors internally |
+| `defaultSavedColors` | `string[]` | `[]` | Initial saved colors (uncontrolled) |
+| `onSavedColorsChange` | `(colors: string[]) => void` | – | Called with the new list on save / remove / clear |
+| `confirmClear` | `boolean` | `true` | Require a second tap on "Clear" |
 | `onSaveColor` | `(hex: string) => void` | – | Called when user saves a color |
 | `onRemoveSavedColor` | `(hex: string) => void` | – | Called when user removes a specific saved color |
 | `onClearSaved` | `() => void` | – | Called when user clears all saved colors |
@@ -238,8 +329,8 @@ const ref = useRef<ColorPickerRef>(null);
 
 | Method | Description |
 |---|---|
-| `getColor()` | Returns current color as hex string |
-| `setColor(hex)` | Sets the color programmatically |
+| `getColor()` | Current color — `#RRGGBB`, or `#RRGGBBAA` when `showAlpha` is on |
+| `setColor(hex)` | Sets the color (any hex notation). Keeps the current alpha unless the hex has one. Fires `onChange` and `onChangeComplete` |
 | `removeSavedColor(hex)` | Removes a specific saved color (works in both modes) |
 | `clearSaved()` | Clears all saved colors |
 | `open()` | Opens the modal (no-op when `inline`) |
@@ -253,10 +344,25 @@ import {
   type ColorPickerProps,
   type ColorPickerRef,
   type ColorPickerLabels,
+  type ColorPickerTheme,
+  type ColorPickerThemeProp,
   type ColorPalette,
+  type ColorValue,
   type TabId,
   tailwindPalette,
   tailwindColors,
+  themes,
+  DEFAULT_LABELS,
+  // Color helpers
+  normalizeHex,
+  isValidHex,
+  hexToRgb,
+  rgbToHex,
+  hexToHsb,
+  hsbToHex,
+  parseColor,
+  formatColor,
+  getContrastColor,
 } from "@darthrapid/react-native-color-picker";
 ```
 
@@ -289,6 +395,17 @@ export default function App() {
     />
   );
 }
+```
+
+## Development
+
+```bash
+bun install
+bun run typecheck
+bun run lint           # oxlint
+bun run format:check   # oxfmt (bun run format to fix)
+bun run test
+bun run example start  # Expo example app
 ```
 
 ## License

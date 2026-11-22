@@ -1,3 +1,5 @@
+import type { ColorPalette } from "../components/palettes-tab";
+
 export const tailwindColors = {
   red: {
     50: "#FEF2F2",
@@ -10,7 +12,7 @@ export const tailwindColors = {
     700: "#C11007",
     800: "#9F0712",
     900: "#82181A",
-    950: "#460809"
+    950: "#460809",
   },
   orange: {
     50: "#FFF7ED",
@@ -23,7 +25,7 @@ export const tailwindColors = {
     700: "#CA3519",
     800: "#9F2D01",
     900: "#7E2A0C",
-    950: "#441306"
+    950: "#441306",
   },
   amber: {
     50: "#FFFBEB",
@@ -36,7 +38,7 @@ export const tailwindColors = {
     700: "#BB4D1A",
     800: "#973C08",
     900: "#7B3306",
-    950: "#461901"
+    950: "#461901",
   },
   yellow: {
     50: "#FEFCE8",
@@ -49,7 +51,7 @@ export const tailwindColors = {
     700: "#A65F1B",
     800: "#894B0A",
     900: "#733E0A",
-    950: "#432004"
+    950: "#432004",
   },
   lime: {
     50: "#F7FEE7",
@@ -62,7 +64,7 @@ export const tailwindColors = {
     700: "#497D15",
     800: "#3C6301",
     900: "#35530E",
-    950: "#192E03"
+    950: "#192E03",
   },
   green: {
     50: "#F0FDF4",
@@ -75,7 +77,7 @@ export const tailwindColors = {
     700: "#178236",
     800: "#016630",
     900: "#0D542B",
-    950: "#032E15"
+    950: "#032E15",
   },
   emerald: {
     50: "#ECFDF5",
@@ -88,7 +90,7 @@ export const tailwindColors = {
     700: "#1F7A55",
     800: "#116045",
     900: "#034F3B",
-    950: "#012C22"
+    950: "#012C22",
   },
   teal: {
     50: "#F0FDFA",
@@ -101,7 +103,7 @@ export const tailwindColors = {
     700: "#18786F",
     800: "#075F5A",
     900: "#0B4F4A",
-    950: "#022F2E"
+    950: "#022F2E",
   },
   cyan: {
     50: "#ECFEFF",
@@ -114,7 +116,7 @@ export const tailwindColors = {
     700: "#1A7595",
     800: "#015F78",
     900: "#104E64",
-    950: "#053345"
+    950: "#053345",
   },
   sky: {
     50: "#F0F9FF",
@@ -127,7 +129,7 @@ export const tailwindColors = {
     700: "#1C69A8",
     800: "#10598A",
     900: "#024A70",
-    950: "#052F4A"
+    950: "#052F4A",
   },
   blue: {
     50: "#EFF6FF",
@@ -140,7 +142,7 @@ export const tailwindColors = {
     700: "#1447E6",
     800: "#193CB8",
     900: "#1C398E",
-    950: "#162456"
+    950: "#162456",
   },
   indigo: {
     50: "#EEF2FF",
@@ -153,7 +155,7 @@ export const tailwindColors = {
     700: "#432DD7",
     800: "#372AAC",
     900: "#312C85",
-    950: "#1E1A4D"
+    950: "#1E1A4D",
   },
   violet: {
     50: "#F5F3FF",
@@ -166,7 +168,7 @@ export const tailwindColors = {
     700: "#7008E7",
     800: "#5D0EC0",
     900: "#4D179A",
-    950: "#2F0D68"
+    950: "#2F0D68",
   },
   purple: {
     50: "#FAF5FF",
@@ -179,7 +181,7 @@ export const tailwindColors = {
     700: "#8207DB",
     800: "#6E11B0",
     900: "#59168B",
-    950: "#3C0366"
+    950: "#3C0366",
   },
   fuchsia: {
     50: "#FDF4FF",
@@ -192,7 +194,7 @@ export const tailwindColors = {
     700: "#A813B7",
     800: "#8A0194",
     900: "#721378",
-    950: "#4B004F"
+    950: "#4B004F",
   },
   pink: {
     50: "#FDF2F8",
@@ -205,7 +207,7 @@ export const tailwindColors = {
     700: "#C6185C",
     800: "#A3044C",
     900: "#861043",
-    950: "#510424"
+    950: "#510424",
   },
   rose: {
     50: "#FFF1F2",
@@ -218,7 +220,7 @@ export const tailwindColors = {
     700: "#C71D36",
     800: "#A50C36",
     900: "#8B0836",
-    950: "#4D0218"
+    950: "#4D0218",
   },
   slate: {
     50: "#F8FAFC",
@@ -231,7 +233,7 @@ export const tailwindColors = {
     700: "#314158",
     800: "#1D293D",
     900: "#0F172B",
-    950: "#020618"
+    950: "#020618",
   },
   gray: {
     50: "#F9FAFB",
@@ -244,7 +246,7 @@ export const tailwindColors = {
     700: "#364153",
     800: "#1E2939",
     900: "#101828",
-    950: "#030712"
+    950: "#030712",
   },
   zinc: {
     50: "#FAFAFA",
@@ -257,7 +259,7 @@ export const tailwindColors = {
     700: "#3F3F46",
     800: "#27272A",
     900: "#18181B",
-    950: "#09090B"
+    950: "#09090B",
   },
   neutral: {
     50: "#FAFAFA",
@@ -270,7 +272,7 @@ export const tailwindColors = {
     700: "#404040",
     800: "#262626",
     900: "#171717",
-    950: "#0A0A0A"
+    950: "#0A0A0A",
   },
   stone: {
     50: "#FAFAF9",
@@ -283,12 +285,12 @@ export const tailwindColors = {
     700: "#44403B",
     800: "#292524",
     900: "#1C1917",
-    950: "#0C0A09"
-  }
-}
+    950: "#0C0A09",
+  },
+};
 
 // Single palette with all Tailwind colors grouped
-export const tailwindPalette = {
+export const tailwindPalette: ColorPalette = {
   name: "Tailwind",
   colors: tailwindColors,
 };

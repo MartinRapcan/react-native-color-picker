@@ -1,18 +1,32 @@
 import { Stack } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { ColorPicker } from "../../../src";
+import { ColorPicker, type ColorPickerThemeProp } from "../../../src";
+
+type ThemeOption = "light" | "dark" | "custom";
+
+// Partial override merged on top of a built-in base theme.
+const CUSTOM_THEME: ColorPickerThemeProp = {
+  base: "dark",
+  background: "#0F2A2E",
+  surface: "rgba(94,234,212,0.08)",
+  border: "rgba(94,234,212,0.25)",
+  tabActive: "#5EEAD4",
+  tabIndicator: "#5EEAD4",
+  tabActiveText: "#0F2A2E",
+  thumbBorder: "#5EEAD4",
+};
 
 export default function ThemeScreen() {
   const [color, setColor] = useState("#FB8C00");
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [theme, setTheme] = useState<ThemeOption>("dark");
 
   return (
     <>
       <Stack.Screen options={{ title: "Theme" }} />
       <View style={styles.container}>
         <View style={styles.toggleRow}>
-          {(["light", "dark"] as const).map((t) => (
+          {(["light", "dark", "custom"] as const).map((t) => (
             <TouchableOpacity
               key={t}
               onPress={() => setTheme(t)}
@@ -23,7 +37,12 @@ export default function ThemeScreen() {
           ))}
         </View>
 
-        <ColorPicker value={color} onChange={setColor} inline theme={theme} />
+        <ColorPicker
+          value={color}
+          onChange={setColor}
+          inline
+          theme={theme === "custom" ? CUSTOM_THEME : theme}
+        />
       </View>
     </>
   );

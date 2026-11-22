@@ -1,134 +1,72 @@
-import React, {
-  useCallback,
-  useRef,
-  useState
-} from "react";
-import {
-  PanResponder,
-  View
-} from "react-native";
+import { memo, useCallback } from "react";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
+import { useSvgId } from "../hooks/use-svg-id";
 import { hsbToHex } from "../utils/colors";
+import { Slider } from "./slider";
+
+const HUE_STOPS = ["#FF0000", "#FFFF00", "#00FF00", "#00FFFF", "#0000FF", "#FF00FF", "#FF0000"];
 
 type HueStripProps = {
   hue: number;
   height: number;
   disabled: boolean;
   thumbBorder: string;
+  label: string;
   onChange: (hue: number) => void;
-}
+  onChangeEnd?: () => void;
+};
 
-export function HueStrip({
+export const HueStrip = memo(function HueStrip({
   hue,
   height,
   disabled,
   thumbBorder,
+  label,
   onChange,
+  onChangeEnd,
 }: HueStripProps) {
-  const containerRef = useRef<React.ComponentRef<typeof View>>(null);
-  const originXRef = useRef(0);
-  const widthRef = useRef(0);
-  const disabledRef = useRef(disabled);
-  const onChangeRef = useRef(onChange);
-  disabledRef.current = disabled;
-  onChangeRef.current = onChange;
+  const gradId = useSvgId("hue");
 
-  const [layoutWidth, setLayoutWidth] = useState(0);
-
-  const calcHue = useCallback((pageX: number) => {
-    const w = widthRef.current;
-    if (w === 0) return 0;
-    const x = Math.max(0, Math.min(pageX - originXRef.current, w));
-    return Math.round((x / w) * 360);
-  }, []);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => !disabledRef.current,
-      onStartShouldSetPanResponderCapture: () => !disabledRef.current,
-      onMoveShouldSetPanResponder: () => !disabledRef.current,
-      onMoveShouldSetPanResponderCapture: () => !disabledRef.current,
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderGrant: (evt) => {
-        const { pageX } = evt.nativeEvent;
-        containerRef.current?.measure((_x: number, _y: number, w: number, _h: number, ox: number) => {
-          originXRef.current = ox;
-          widthRef.current = w;
-          onChangeRef.current(calcHue(pageX));
-        });
-      },
-      onPanResponderMove: (evt) => {
-        onChangeRef.current(calcHue(evt.nativeEvent.pageX));
-      },
-    }),
-  ).current;
-
-  const hueColors = [
-    "#FF0000",
-    "#FFFF00",
-    "#00FF00",
-    "#00FFFF",
-    "#0000FF",
-    "#FF00FF",
-    "#FF0000",
-  ];
-  const thumbLeft = layoutWidth > 0 ? (hue / 360) * layoutWidth : 0;
-  const thumbSize = height + 6;
+  const renderTrack = useCallback(
+    (width: number, h: number, inset: number) => (
+      <Svg width={width} height={h}>
+        <Defs>
+          {/* The gradient spans only the thumb's range, so the colour under the thumb's centre is exact. */}
+          <LinearGradient
+            id={gradId}
+            x1={inset}
+            y1="0"
+            x2={width - inset}
+            y2="0"
+            gradientUnits="userSpaceOnUse"
+          >
+            {HUE_STOPS.map((color, i) => (
+              <Stop key={i} offset={i / (HUE_STOPS.length - 1)} stopColor={color} />
+            ))}
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width={width} height={h} rx={h / 2} fill={`url(#${gradId})`} />
+      </Svg>
+    ),
+    [gradId],
+  );
 
   return (
-    <View
-      ref={containerRef}
-      onLayout={(e) => {
-        const w = e.nativeEvent.layout.width;
-        setLayoutWidth(w);
-        widthRef.current = w;
-      }}
-      style={{ width: "100%", height, overflow: "visible" }}
-      {...panResponder.panHandlers}
-    >
-      {layoutWidth > 0 && (
-        <>
-          <Svg width={layoutWidth} height={height}>
-            <Defs>
-              <LinearGradient id="hueGrad" x1="0" y1="0" x2="1" y2="0">
-                {hueColors.map((color, i) => (
-                  <Stop
-                    key={i}
-                    offset={`${(i / (hueColors.length - 1)) * 100}%`}
-                    stopColor={color}
-                  />
-                ))}
-              </LinearGradient>
-            </Defs>
-            <Rect
-              x="0"
-              y="0"
-              width={layoutWidth}
-              height={height}
-              rx={height / 2}
-              fill="url(#hueGrad)"
-            />
-          </Svg>
-          <View
-            style={{
-              position: "absolute",
-              left: thumbLeft - thumbSize / 2,
-              top: -3,
-              width: thumbSize,
-              height: thumbSize,
-              borderRadius: thumbSize / 2,
-              borderWidth: 3,
-              borderColor: thumbBorder,
-              backgroundColor: hsbToHex(hue, 100, 100),
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.3,
-              shadowRadius: 4,
-              elevation: 5,
-            }}
-          />
-        </>
-      )}
-    </View>
+    <Slider
+      testID="color-picker-hue"
+      value={hue}
+      min={0}
+      max={360}
+      step={5}
+      height={height}
+      disabled={disabled}
+      thumbBorder={thumbBorder}
+      thumbColor={hsbToHex(hue, 100, 100)}
+      label={label}
+      valueText={`${Math.round(hue)}°`}
+      renderTrack={renderTrack}
+      onChange={onChange}
+      onChangeEnd={onChangeEnd}
+    />
   );
-}
+});

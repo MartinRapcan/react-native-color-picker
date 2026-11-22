@@ -78,3 +78,6 @@ android/generated
 
 # React Native Nitro Modules
 nitrogen/
+
+# Jest coverage
+coverage/
