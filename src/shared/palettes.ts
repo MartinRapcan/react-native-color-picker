@@ -289,8 +289,10 @@ export const tailwindColors = {
   },
 };
 
-// Single palette with all Tailwind colors grouped
-export const tailwindPalette: ColorPalette = {
+// Single palette with all Tailwind colors grouped.
+// `satisfies` (not a type annotation) keeps the exact type, so
+// `tailwindPalette.colors.red[500]` stays a `string` for consumers.
+export const tailwindPalette = {
   name: "Tailwind",
   colors: tailwindColors,
-};
+} satisfies ColorPalette;
