@@ -1,7 +1,7 @@
 import { Stack } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { ColorPicker, tailwindPalette } from "../../../src";
+import { ColorPicker, tailwindPalette, type ColorPickerLabels } from "../../../src";
 
 const skLabels = {
   picker: "Výber",
@@ -10,8 +10,21 @@ const skLabels = {
   save: "Uložiť",
   saved: "Uložené",
   clearSaved: "Vymazať",
+  confirmClear: "Naozaj?",
   noSavedColors: "Žiadne uložené farby",
-};
+  // Screen-reader labels (VoiceOver / TalkBack)
+  hue: "Odtieň",
+  saturation: "Sýtosť",
+  brightness: "Jas",
+  alpha: "Priehľadnosť",
+  hex: "Hex farba",
+  red: "Červená",
+  green: "Zelená",
+  blue: "Modrá",
+  openPicker: "Otvoriť výber farby",
+  closePicker: "Zavrieť výber farby",
+  removeColor: "Odstrániť farbu",
+} satisfies ColorPickerLabels;
 
 export default function I18nScreen() {
   const [color, setColor] = useState("#1E88E5");

@@ -1,7 +1,7 @@
 import { Stack } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { ColorPicker, tailwindPalette } from "../../../src";
+import { ColorPicker, tailwindPalette, type ColorPalette } from "../../../src";
 
 const brandPalette = {
   name: "Brand",
@@ -27,7 +27,7 @@ const brandPalette = {
       900: "#111827",
     },
   },
-};
+} satisfies ColorPalette; // checks the shape, keeps exact types (brandPalette.colors.blue[500])
 
 export default function PalettesScreen() {
   const [color, setColor] = useState("#3B82F6");
@@ -44,6 +44,7 @@ export default function PalettesScreen() {
           value={color}
           onChange={setColor}
           inline
+          initialTab="palettes"
           palettes={[brandPalette, tailwindPalette]}
         />
       </View>

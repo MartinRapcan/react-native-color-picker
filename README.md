@@ -1,6 +1,6 @@
 # @darthrapid/react-native-color-picker
 
-Lightweight HSB color picker for React Native with alpha channel, color palettes, saved colors with per-item delete, modal/inline modes, light/dark themes and i18n. Pure JS, works in Expo Go.
+Lightweight HSB color picker for React Native with alpha channel, editable values, color palettes, saved colors, modal/inline modes, light/dark/custom themes, i18n and screen-reader support. Pure JS, works in Expo Go.
 
 ## Installation
 
@@ -14,7 +14,7 @@ bun add @darthrapid/react-native-color-picker
 bun add react-native-svg
 ```
 
-Requires `react-native-svg >= 15.15.5` (peer). Works with anything Expo SDK 54+ ships.
+Requires `react-native-svg >= 15.15.5` and React 18+ (peers). Works with anything Expo SDK 54+ ships.
 
 ## What's new in 1.3.0
 
@@ -27,8 +27,11 @@ Requires `react-native-svg >= 15.15.5` (peer). Works with anything Expo SDK 54+ 
 - **Saved colors** — `onSavedColorsChange(colors)` and `defaultSavedColors`; "Clear" asks for confirmation (`confirmClear`, default `true`).
 - **`initialTab`**, and the selected tab is remembered when the modal is closed and reopened.
 - **Ref API** — `getColor()` includes alpha when `showAlpha` is on; `setColor()` accepts any hex notation and keeps the current alpha unless the hex has one.
-- **Fixes** — unique SVG gradient ids (two pickers on one web page no longer share gradients), thumbs no longer get clipped at the pad corners, touch handling no longer depends on an async `measure()`, invalid `value` falls back to the default instead of producing `NaN`.
+- **Fixes** — unique SVG gradient ids (two pickers on one screen no longer share gradients on Expo Web), thumbs no longer get clipped at the pad corners, touch handling no longer depends on an async `measure()`, invalid `value` falls back to the default instead of producing `NaN`.
 - Requires React ≥ 18 (`useId`).
+- **Behavior changes** — output hex is now uppercase (`#007AFF`), "Clear" needs a second tap, `getColor()` includes alpha when `showAlpha` is on. See the [v1.3.0 release notes](https://github.com/MartinRapcan/react-native-color-picker/releases/tag/v1.3.0) before upgrading.
+
+Patch releases (1.3.1, 1.3.2) and older changes: see [Releases](https://github.com/MartinRapcan/react-native-color-picker/releases).
 
 ## What's new in 1.2.0
 
@@ -167,6 +170,19 @@ import { ColorPicker, tailwindPalette } from "@darthrapid/react-native-color-pic
 
 You can pass multiple palettes — a horizontal palette picker appears above the swatches.
 
+Define palettes outside your component (or memoize them). In TypeScript, use `satisfies` to check the shape while keeping exact types:
+
+```tsx
+import { type ColorPalette } from "@darthrapid/react-native-color-picker";
+
+const brandPalette = {
+  name: "Brand",
+  colors: { primary: "#007AFF", blue: { 100: "#DBEAFE", 500: "#3B82F6" } },
+} satisfies ColorPalette;
+
+brandPalette.colors.blue[500]; // string ✓
+```
+
 ## Saved Colors
 
 The Palettes tab has a **Saved** section where users can save colors and remove them individually via the red ✕ badge on each swatch.
@@ -179,9 +195,11 @@ Let the component manage saved colors internally — data isn't persisted across
 <ColorPicker value={color} onChange={setColor} />
 ```
 
+Uncontrolled pickers can start with `defaultSavedColors={["#FF3B30", "#34C759"]}`.
+
 ### Controlled (persistable)
 
-Bind the saved list to your own state so you can persist it (AsyncStorage, MMKV, backend…).
+Bind the saved list to your own state so you can persist it (AsyncStorage, MMKV, backend…). The picker computes the new list on save / ✕ / clear and hands it to `onSavedColorsChange` — you just store it:
 
 ```tsx
 const [savedColors, setSavedColors] = useState<string[]>([]);
@@ -190,25 +208,25 @@ const [savedColors, setSavedColors] = useState<string[]>([]);
   value={color}
   onChange={setColor}
   savedColors={savedColors}
-  onSaveColor={(hex) =>
-    setSavedColors((prev) => (prev.includes(hex) ? prev : [hex, ...prev]))
-  }
-  onRemoveSavedColor={(hex) =>
-    setSavedColors((prev) => prev.filter((c) => c !== hex))
-  }
-  onClearSaved={() => setSavedColors([])}
+  onSavedColorsChange={(colors) => {
+    setSavedColors(colors);
+    AsyncStorage.setItem("savedColors", JSON.stringify(colors));
+  }}
 />
 ```
 
-Or, simpler, handle every change with one callback:
+Load the initial list into your state (e.g. from AsyncStorage on mount) — the picker shows whatever `savedColors` contains.
+
+The per-action callbacks still work, alone (as in 1.2) or together with `onSavedColorsChange` (e.g. for analytics):
 
 ```tsx
-const [savedColors, setSavedColors] = useState<string[]>([]);
-
-<ColorPicker savedColors={savedColors} onSavedColorsChange={setSavedColors} />
+<ColorPicker
+  savedColors={savedColors}
+  onSaveColor={(hex) => setSavedColors((prev) => (prev.includes(hex) ? prev : [hex, ...prev]))}
+  onRemoveSavedColor={(hex) => setSavedColors((prev) => prev.filter((c) => c !== hex))}
+  onClearSaved={() => setSavedColors([])}
+/>
 ```
-
-Uncontrolled pickers can start with `defaultSavedColors={["#FF3B30", "#34C759"]}`.
 
 Callbacks:
 | Callback | Fired when |
@@ -222,7 +240,7 @@ Callbacks:
 
 In controlled mode the ✕ badges and the Clear button are only shown when you pass a handler for them (or `onSavedColorsChange`).
 
-## Light / Dark Theme
+## Themes
 
 ```tsx
 <ColorPicker theme="dark" />  // default
@@ -304,7 +322,7 @@ Override only the labels you want — the rest stays English by default.
 | `swatchBorderRadius` | `number` | `12` | Border radius of the swatch |
 | `swatchStyle` | `ViewStyle` | – | Extra style for the swatch |
 | `inline` | `boolean` | `false` | Renders picker inline without modal |
-| `labels` | `ColorPickerLabels` | – | Custom labels (i18n) |
+| `labels` | `ColorPickerLabels` | – | Custom labels (i18n, incl. screen-reader labels) |
 | `contentStyle` | `ViewStyle` | – | Style for the modal content wrapper |
 | `showAlpha` | `boolean` | `false` | Show alpha channel slider |
 | `palettes` | `ColorPalette[]` | – | Color palettes for the Palettes tab (define outside render or memoize) |
@@ -331,8 +349,8 @@ const ref = useRef<ColorPickerRef>(null);
 |---|---|
 | `getColor()` | Current color — `#RRGGBB`, or `#RRGGBBAA` when `showAlpha` is on |
 | `setColor(hex)` | Sets the color (any hex notation). Keeps the current alpha unless the hex has one. Fires `onChange` and `onChangeComplete` |
-| `removeSavedColor(hex)` | Removes a specific saved color (works in both modes) |
-| `clearSaved()` | Clears all saved colors |
+| `removeSavedColor(hex)` | Removes a specific saved color (works in both modes, fires `onSavedColorsChange`) |
+| `clearSaved()` | Clears all saved colors right away — no confirmation step (fires `onSavedColorsChange`) |
 | `open()` | Opens the modal (no-op when `inline`) |
 | `close()` | Closes the modal (no-op when `inline`) |
 
@@ -354,6 +372,9 @@ import {
   themes,
   DEFAULT_LABELS,
   // Color helpers
+  type Rgb,
+  type Hsb,
+  type Hsba,
   normalizeHex,
   isValidHex,
   hexToRgb,
@@ -368,30 +389,35 @@ import {
 
 ## Full Example
 
-Full-featured picker with alpha, Tailwind palette, and persistable saved colors.
+Full-featured picker with alpha, Tailwind palette, persisted saved colors and a save-on-release callback.
 
 ```tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ColorPicker, tailwindPalette } from "@darthrapid/react-native-color-picker";
 
 export default function App() {
   const [color, setColor] = useState("#3B82F6");
   const [savedColors, setSavedColors] = useState<string[]>([]);
 
+  useEffect(() => {
+    AsyncStorage.getItem("savedColors").then((json) => {
+      if (json) setSavedColors(JSON.parse(json));
+    });
+  }, []);
+
   return (
     <ColorPicker
       value={color}
       onChange={setColor}
+      onChangeComplete={(hex) => console.log("final color", hex)}
       showAlpha
       palettes={[tailwindPalette]}
       savedColors={savedColors}
-      onSaveColor={(hex) =>
-        setSavedColors((prev) => (prev.includes(hex) ? prev : [hex, ...prev]))
-      }
-      onRemoveSavedColor={(hex) =>
-        setSavedColors((prev) => prev.filter((c) => c !== hex))
-      }
-      onClearSaved={() => setSavedColors([])}
+      onSavedColorsChange={(colors) => {
+        setSavedColors(colors);
+        AsyncStorage.setItem("savedColors", JSON.stringify(colors));
+      }}
     />
   );
 }

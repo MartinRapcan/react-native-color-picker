@@ -28,8 +28,5 @@
   "devDependencies": {
     "react-native-builder-bob": "^0.40.13",
     "react-native-monorepo-config": "^0.3.3"
-  },
-  "patchedDependencies": {
-    "metro-config@0.83.3": "patches/metro-config@0.83.3.patch"
   }
 }

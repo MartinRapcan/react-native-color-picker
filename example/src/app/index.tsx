@@ -21,12 +21,12 @@ const DEMOS = [
   {
     href: "/palettes",
     title: "Palettes",
-    description: "Built-in Tailwind palette and a custom brand palette",
+    description: "Built-in Tailwind palette and a custom brand palette (initialTab)",
   },
   {
     href: "/saved",
     title: "Saved Colors (controlled)",
-    description: "Persist saved colors in parent state via callbacks",
+    description: "Saved colors in parent state via onSavedColorsChange",
   },
   {
     href: "/theme",
@@ -36,7 +36,7 @@ const DEMOS = [
   {
     href: "/i18n",
     title: "i18n / Custom Labels",
-    description: "Override the default English labels (Slovak example)",
+    description: "Override the default English labels, incl. screen-reader labels (Slovak)",
   },
   {
     href: "/ref-api",

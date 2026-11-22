@@ -1,7 +1,7 @@
 {
   "name": "@darthrapid/react-native-color-picker",
-  "version": "1.3.1",
-  "description": "Lightweight HSB color picker for React Native with modal/inline modes, tabs, and i18n support. Pure JS, Expo compatible.",
+  "version": "1.3.2",
+  "description": "Lightweight HSB color picker for React Native with alpha, editable values, palettes, saved colors, custom themes, i18n and accessibility. Pure JS, Expo compatible.",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
@@ -42,7 +42,12 @@
     "i18n",
     "expo",
     "ios",
-    "android"
+    "android",
+    "alpha",
+    "palette",
+    "tailwind",
+    "accessibility",
+    "a11y"
   ],
   "repository": {
     "type": "git",

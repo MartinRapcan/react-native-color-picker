@@ -59,10 +59,12 @@ To run the example app on Web:
 bun run example web
 ```
 
-Make sure your code passes TypeScript:
+Make sure your code passes TypeScript, the linter ([oxlint](https://oxc.rs/docs/guide/usage/linter)) and the formatter ([oxfmt](https://oxc.rs/docs/guide/usage/formatter)):
 
 ```sh
 bun run typecheck
+bun run lint
+bun run format:check   # or `bun run format` to fix
 ```
 
 Remember to add tests for your change if possible. Run the unit tests by:
@@ -92,6 +94,8 @@ The `package.json` file contains various scripts for common tasks:
 
 - `bun install`: setup project by installing dependencies.
 - `bun run typecheck`: type-check files with TypeScript.
+- `bun run lint`: lint files with oxlint.
+- `bun run format`: format files with oxfmt (`format:check` only checks).
 - `bun run test`: run unit tests with [Jest](https://jestjs.io/).
 - `bun run example start`: start the Metro server for the example app.
 - `bun run example android`: run the example app on Android.

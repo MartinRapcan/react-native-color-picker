@@ -28,14 +28,11 @@ export default function SavedScreen() {
           value={color}
           onChange={setColor}
           inline
+          initialTab="palettes"
           savedColors={savedColors}
-          onSaveColor={(hex) =>
-            setSavedColors((prev) => (prev.includes(hex) ? prev : [hex, ...prev]))
-          }
-          onRemoveSavedColor={(hex) =>
-            setSavedColors((prev) => prev.filter((c) => c !== hex))
-          }
-          onClearSaved={() => setSavedColors([])}
+          // The picker computes the new list (save / ✕ / clear) — just store it.
+          // Persist it here too, e.g. AsyncStorage.setItem("savedColors", JSON.stringify(colors)).
+          onSavedColorsChange={setSavedColors}
         />
       </View>
     </>
